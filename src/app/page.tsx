@@ -43,10 +43,11 @@ export default function HomePage() {
   const [showProfileModal, setShowProfileModal] = useState(false);
 
   useEffect(() => {
-    loadInitialData();
+    loadLocalData();
+    loadCloudData();
   }, []);
 
-  const loadInitialData = async () => {
+  const loadLocalData = async () => {
     try {
       const [localDiaries, localNotebooks, localStats] = await Promise.all([
         localDB.getAllDiaries(),
@@ -56,38 +57,52 @@ export default function HomePage() {
       setDiaries(localDiaries);
       setNotebooks(localNotebooks);
       setStats(localStats);
+    } catch (error) {
+      console.error('加载本地数据失败:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-      if (!supabase) {
-        setIsLoading(false);
-        return;
-      }
+  const loadCloudData = async () => {
+    if (!supabase) return;
 
+    try {
       const uid = await getCurrentUserId();
-      if (uid) {
-        setIsLoggedIn(true);
-        setUserId(uid);
+      if (!uid) return;
 
+      setIsLoggedIn(true);
+      setUserId(uid);
+
+      try {
         const { data: { user } } = await supabase.auth.getUser();
         if (user?.email) {
           setUserEmail(user.email);
         }
+      } catch {
+        // ignore
+      }
 
+      try {
         const profile = await getUserProfile();
         if (profile) {
           setUserProfile(profile);
           setIsVip(profile.is_vip || false);
         } else {
-          // 没有profile也视为登录，推广期全员VIP
           setIsVip(true);
         }
+      } catch {
+        setIsVip(true);
+      }
 
+      try {
         const syncStatus = await getSyncStatus();
         setPendingCount(syncStatus.pending_changes);
+      } catch {
+        // ignore
       }
     } catch (error) {
-      console.error('加载数据失败:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('加载云端数据失败:', error);
     }
   };
 
@@ -100,7 +115,8 @@ export default function HomePage() {
   };
 
   const handleAuthSuccess = () => {
-    loadInitialData();
+    loadLocalData();
+    loadCloudData();
   };
 
   const handleLogout = async () => {
@@ -518,7 +534,8 @@ export default function HomePage() {
         userId={userId}
         onSuccess={() => {
           setShowVipModal(false);
-          loadInitialData();
+          loadLocalData();
+          loadCloudData();
         }}
       />
 
