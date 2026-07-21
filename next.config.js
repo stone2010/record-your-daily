@@ -2,7 +2,11 @@
 const nextConfig = {
   reactStrictMode: true,
   swcMinify: true,
-  // PWA 支持
+  output: 'export',
+  basePath: '/record-your-daily',
+  images: {
+    unoptimized: true,
+  },
   async headers() {
     return [
       {
