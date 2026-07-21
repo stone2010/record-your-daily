@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description: '一款离线优先的日记/随手记应用，支持Markdown编辑，VIP用户可解锁云端同步功能',
   keywords: '日记,备忘录,Markdown,离线优先,PWA',
   authors: [{ name: 'Diary App' }],
-  manifest: '/manifest.json',
+  manifest: '/record-your-daily/manifest.json',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'default',
