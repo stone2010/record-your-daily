@@ -1,14 +1,15 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
-  swcMinify: true,
   output: 'export',
   basePath: '/record-your-daily',
   images: {
     unoptimized: true,
   },
   experimental: {
-    useLightningcss: false,
+    turbo: {
+      enabled: false,
+    },
   },
   async headers() {
     return [

@@ -116,6 +116,21 @@ async function ensureDefaultNotebooks(): Promise<void> {
   }
 }
 
+let ensureDefaultNotebooksPromise: Promise<void> | null = null;
+
+async function ensureDefaultNotebooksOnce(): Promise<void> {
+  if (ensureDefaultNotebooksPromise) {
+    return ensureDefaultNotebooksPromise;
+  }
+  ensureDefaultNotebooksPromise = ensureDefaultNotebooks();
+  try {
+    await ensureDefaultNotebooksPromise;
+  } catch (e) {
+    ensureDefaultNotebooksPromise = null;
+    throw e;
+  }
+}
+
 export const localDB = {
   async createDiary(title: string, content: string, userId?: string, notebookId?: string): Promise<Diary> {
     const validation = validateDiaryData(title, content);
@@ -276,7 +291,7 @@ export const localDB = {
   // ==================== 日记本操作 ====================
 
   async getAllNotebooks(userId?: string): Promise<Notebook[]> {
-    await ensureDefaultNotebooks();
+    await ensureDefaultNotebooksOnce();
     const db = await getDB();
     const all = await db.getAll('notebooks');
     const filtered = userId ? all.filter(n => n.user_id === userId || !n.user_id) : all;
@@ -289,7 +304,7 @@ export const localDB = {
   },
 
   async getDefaultNotebook(): Promise<Notebook> {
-    await ensureDefaultNotebooks();
+    await ensureDefaultNotebooksOnce();
     const db = await getDB();
     const notebooks = await db.getAll('notebooks');
     const defaultNb = notebooks.find(n => n.is_default);
