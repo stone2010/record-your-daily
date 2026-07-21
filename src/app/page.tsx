@@ -9,6 +9,7 @@ import DiaryEditor from '@/components/DiaryEditor';
 import VIPModal from '@/components/VIPModal';
 import SyncButton from '@/components/SyncButton';
 import DiaryCard from '@/components/DiaryCard';
+import AuthModal from '@/components/AuthModal';
 
 export default function HomePage() {
   // 状态管理
@@ -28,6 +29,9 @@ export default function HomePage() {
 
   // VIP弹窗状态
   const [showVipModal, setShowVipModal] = useState(false);
+
+  // 认证弹窗状态
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // 加载数据
   useEffect(() => {
@@ -74,65 +78,18 @@ export default function HomePage() {
     }
   };
 
-  // 登录
-  const handleLogin = async () => {
-    if (!supabase) {
-      alert('Supabase未配置，无法登录');
-      return;
-    }
-    
-    try {
-      const email = prompt('请输入邮箱:');
-      const password = prompt('请输入密码:');
-
-      if (!email || !password) return;
-
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
-
-      if (error) {
-        alert(`登录失败: ${error.message}`);
-        return;
-      }
-
-      await loadInitialData();
-    } catch (error) {
-      console.error('登录失败:', error);
-      alert('登录失败，请重试');
-    }
+  // 打开认证弹窗
+  const handleLogin = () => {
+    setShowAuthModal(true);
   };
 
-  // 注册
-  const handleRegister = async () => {
-    if (!supabase) {
-      alert('Supabase未配置，无法注册');
-      return;
-    }
-    
-    try {
-      const email = prompt('请输入邮箱:');
-      const password = prompt('请输入密码（至少6位）:');
+  const handleRegister = () => {
+    setShowAuthModal(true);
+  };
 
-      if (!email || !password) return;
-
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
-
-      if (error) {
-        alert(`注册失败: ${error.message}`);
-        return;
-      }
-
-      alert('注册成功！请检查邮箱完成验证。');
-      await loadInitialData();
-    } catch (error) {
-      console.error('注册失败:', error);
-      alert('注册失败，请重试');
-    }
+  // 认证成功回调
+  const handleAuthSuccess = () => {
+    loadInitialData();
   };
 
   // 退出登录
@@ -367,6 +324,13 @@ export default function HomePage() {
           setShowVipModal(false);
           loadInitialData();
         }}
+      />
+
+      {/* 认证弹窗 */}
+      <AuthModal
+        isOpen={showAuthModal}
+        onClose={() => setShowAuthModal(false)}
+        onSuccess={handleAuthSuccess}
       />
     </div>
   );
