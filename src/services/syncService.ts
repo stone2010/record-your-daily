@@ -2,16 +2,11 @@ import { Diary, UserProfile, SyncResponse } from '@/types';
 import { supabase, getCurrentUserId } from '@/lib/supabaseClient';
 import localDB from '@/lib/localDatabase';
 
-// 限流配置
-const SYNC_THROTTLE_MS = 10 * 1000; // 10秒
+const SYNC_THROTTLE_MS = 10 * 1000;
 
-// 限流状态管理
 let lastSyncTime = 0;
 let syncInProgress = false;
 
-/**
- * 检查同步限流
- */
 function checkSyncThrottle(): { allowed: boolean; waitTime?: number } {
   const now = Date.now();
   const timeSinceLastSync = now - lastSyncTime;
@@ -28,10 +23,9 @@ function checkSyncThrottle(): { allowed: boolean; waitTime?: number } {
   return { allowed: true };
 }
 
-/**
- * 获取用户档案（包含VIP状态）
- */
 export async function getUserProfile(): Promise<UserProfile | null> {
+  if (!supabase) return null;
+
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
@@ -56,9 +50,6 @@ export async function getUserProfile(): Promise<UserProfile | null> {
   }
 }
 
-/**
- * 检查用户是否为活跃VIP
- */
 export async function isActiveVip(): Promise<boolean> {
   const profile = await getUserProfile();
   
@@ -74,7 +65,6 @@ export async function isActiveVip(): Promise<boolean> {
     return false;
   }
 
-  // 检查VIP是否过期（如果有过期时间）
   if (profile.vip_expire_at) {
     const expireTime = new Date(profile.vip_expire_at).getTime();
     const now = Date.now();
@@ -86,11 +76,15 @@ export async function isActiveVip(): Promise<boolean> {
   return true;
 }
 
-/**
- * 同步本地日记到云端（仅VIP可用）
- */
 export async function syncToCloud(): Promise<SyncResponse> {
-  // 1. 检查限流
+  if (!supabase) {
+    return {
+      success: false,
+      synced_count: 0,
+      error: 'Supabase未配置，请检查环境变量',
+    };
+  }
+
   const throttleCheck = checkSyncThrottle();
   if (!throttleCheck.allowed) {
     return {
@@ -102,7 +96,6 @@ export async function syncToCloud(): Promise<SyncResponse> {
     };
   }
 
-  // 2. 检查登录状态
   const userId = await getCurrentUserId();
   if (!userId) {
     return {
@@ -112,17 +105,15 @@ export async function syncToCloud(): Promise<SyncResponse> {
     };
   }
 
-  // 3. 检查VIP状态
   const isVip = await isActiveVip();
   if (!isVip) {
     return {
       success: false,
       synced_count: 0,
-      error: 'VIP_REQUIRED', // 特殊错误码，前端用于弹出VIP订阅弹窗
+      error: 'VIP_REQUIRED',
     };
   }
 
-  // 4. 检查用户是否被封禁
   const profile = await getUserProfile();
   if (profile?.is_banned) {
     return {
@@ -132,12 +123,10 @@ export async function syncToCloud(): Promise<SyncResponse> {
     };
   }
 
-  // 5. 开始同步
   syncInProgress = true;
   lastSyncTime = Date.now();
 
   try {
-    // 获取未同步的日记
     const unsyncedDiaries = await localDB.getUnsyncedDiaries();
 
     if (unsyncedDiaries.length === 0) {
@@ -147,14 +136,12 @@ export async function syncToCloud(): Promise<SyncResponse> {
       };
     }
 
-    // 准备同步数据（添加用户ID）
     const diariesToSync = unsyncedDiaries.map((diary) => ({
       ...diary,
       user_id: userId,
     }));
 
-    // 批量插入或更新到Supabase
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('diaries')
       .upsert(diariesToSync, {
         onConflict: 'id',
@@ -169,11 +156,9 @@ export async function syncToCloud(): Promise<SyncResponse> {
       };
     }
 
-    // 标记本地日记为已同步
     const syncedIds = unsyncedDiaries.map((d) => d.id);
     await localDB.markAsSynced(syncedIds);
 
-    // 更新最后同步时间
     const now = new Date().toISOString();
     await localDB.setLastSyncAt(now);
 
@@ -193,11 +178,15 @@ export async function syncToCloud(): Promise<SyncResponse> {
   }
 }
 
-/**
- * 从云端拉取日记到本地（仅VIP可用）
- */
 export async function pullFromCloud(): Promise<SyncResponse> {
-  // 1. 检查登录状态
+  if (!supabase) {
+    return {
+      success: false,
+      synced_count: 0,
+      error: 'Supabase未配置',
+    };
+  }
+
   const userId = await getCurrentUserId();
   if (!userId) {
     return {
@@ -207,7 +196,6 @@ export async function pullFromCloud(): Promise<SyncResponse> {
     };
   }
 
-  // 2. 检查VIP状态
   const isVip = await isActiveVip();
   if (!isVip) {
     return {
@@ -217,7 +205,6 @@ export async function pullFromCloud(): Promise<SyncResponse> {
     };
   }
 
-  // 3. 检查用户是否被封禁
   const profile = await getUserProfile();
   if (profile?.is_banned) {
     return {
@@ -228,7 +215,6 @@ export async function pullFromCloud(): Promise<SyncResponse> {
   }
 
   try {
-    // 从Supabase获取所有日记
     const { data: serverDiaries, error } = await supabase
       .from('diaries')
       .select('*')
@@ -251,10 +237,8 @@ export async function pullFromCloud(): Promise<SyncResponse> {
       };
     }
 
-    // 合并到本地数据库（保留本地更新的版本）
     await localDB.upsertDiaries(serverDiaries);
 
-    // 更新最后同步时间
     const now = new Date().toISOString();
     await localDB.setLastSyncAt(now);
 
@@ -273,21 +257,15 @@ export async function pullFromCloud(): Promise<SyncResponse> {
   }
 }
 
-/**
- * 完整双向同步（先推后拉）
- */
 export async function fullSync(): Promise<SyncResponse> {
-  // 1. 先推送本地更改到云端
   const pushResult = await syncToCloud();
   
   if (!pushResult.success) {
     return pushResult;
   }
 
-  // 2. 再从云端拉取最新数据
   const pullResult = await pullFromCloud();
 
-  // 返回综合结果
   return {
     success: pullResult.success,
     synced_count: pushResult.synced_count + pullResult.synced_count,
@@ -296,9 +274,6 @@ export async function fullSync(): Promise<SyncResponse> {
   };
 }
 
-/**
- * 获取同步状态
- */
 export async function getSyncStatus() {
   const lastSyncAt = await localDB.getLastSyncAt();
   const pendingChanges = await localDB.countUnsynced();

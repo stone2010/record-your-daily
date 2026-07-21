@@ -1,35 +1,38 @@
-import { createClient, SupabaseClientOptions } from '@supabase/supabase-js';
+import { createClient, SupabaseClientOptions, SupabaseClient } from '@supabase/supabase-js';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
 
-if (!supabaseUrl || !supabaseAnonKey) {
+let supabaseClient: SupabaseClient | null = null;
+
+if (supabaseUrl && supabaseAnonKey) {
+  const clientOptions: SupabaseClientOptions<'public'> = {
+    auth: {
+      persistSession: true,
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+    },
+    global: {
+      headers: {
+        'X-Client-Info': 'diary-app/1.0.0',
+      },
+    },
+  };
+
+  supabaseClient = createClient(supabaseUrl, supabaseAnonKey, clientOptions);
+} else {
   console.warn(
     '[Supabase配置警告] NEXT_PUBLIC_SUPABASE_URL 或 NEXT_PUBLIC_SUPABASE_ANON_KEY 未配置',
-    '\n请在 .env.local 文件中配置正确的环境变量'
+    '\n请在 .env.local 文件中配置正确的环境变量',
+    '\n本地日记功能不受影响，但云端同步功能将不可用'
   );
 }
 
-const clientOptions: SupabaseClientOptions<'public'> = {
-  auth: {
-    persistSession: true,
-    autoRefreshToken: true,
-    detectSessionInUrl: true,
-  },
-  global: {
-    headers: {
-      'X-Client-Info': 'diary-app/1.0.0',
-    },
-  },
-};
-
-export const supabase = createClient(
-  supabaseUrl || '',
-  supabaseAnonKey || '',
-  clientOptions
-);
+export const supabase = supabaseClient;
 
 export async function getCurrentUserId(): Promise<string | null> {
+  if (!supabase) return null;
+  
   try {
     const {
       data: { user },

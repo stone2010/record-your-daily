@@ -71,8 +71,12 @@ export default function HomePage() {
 
   // 登录
   const handleLogin = async () => {
+    if (!supabase) {
+      alert('Supabase未配置，无法登录');
+      return;
+    }
+    
     try {
-      // 使用 Supabase Auth 的 OAuth 登录（这里使用邮箱密码登录作为示例）
       const email = prompt('请输入邮箱:');
       const password = prompt('请输入密码:');
 
@@ -97,6 +101,11 @@ export default function HomePage() {
 
   // 注册
   const handleRegister = async () => {
+    if (!supabase) {
+      alert('Supabase未配置，无法注册');
+      return;
+    }
+    
     try {
       const email = prompt('请输入邮箱:');
       const password = prompt('请输入密码（至少6位）:');
@@ -123,6 +132,8 @@ export default function HomePage() {
 
   // 退出登录
   const handleLogout = async () => {
+    if (!supabase) return;
+    
     if (!confirm('确定要退出登录吗？')) return;
 
     await supabase.auth.signOut();
