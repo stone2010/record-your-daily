@@ -34,6 +34,7 @@ export interface PaymentProduct {
   code: string;
   price: number;
   name: string;
+  description: string;
 }
 
 // 支付结果
