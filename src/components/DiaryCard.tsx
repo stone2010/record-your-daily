@@ -1,29 +1,42 @@
 'use client';
 
-import { Diary } from '@/types';
+import { Diary, Notebook } from '@/types';
 import { format } from 'date-fns';
 import { zhCN } from 'date-fns/locale';
 
 interface DiaryCardProps {
   diary: Diary;
+  notebook?: Notebook;
   onEdit: (diary: Diary) => void;
   onDelete: (id: string) => void;
 }
 
-export default function DiaryCard({ diary, onEdit, onDelete }: DiaryCardProps) {
+export default function DiaryCard({ diary, notebook, onEdit, onDelete }: DiaryCardProps) {
   const formattedDate = format(new Date(diary.created_at), 'yyyy年MM月dd日 EEEE', {
     locale: zhCN,
   });
 
   const formattedTime = format(new Date(diary.created_at), 'HH:mm');
 
-  // 提取摘要（前100个字符）
   const summary = diary.content.slice(0, 100).replace(/[#*`]/g, '');
 
   return (
-    <div className="bg-white rounded-xl shadow-sm hover:shadow-md transition-all p-5 border border-gray-100 group">
-      <div className="flex items-start justify-between mb-3">
+    <div className="bg-white rounded-2xl shadow-sm hover:shadow-lg transition-all p-6 border border-gray-100 group hover:-translate-y-1">
+      <div className="flex items-start justify-between mb-4">
         <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 mb-2">
+            {notebook && (
+              <>
+                <span className="text-lg">{notebook.icon}</span>
+                <span 
+                  className="text-xs px-2 py-0.5 rounded-full text-white font-medium"
+                  style={{ backgroundColor: notebook.color }}
+                >
+                  {notebook.name}
+                </span>
+              </>
+            )}
+          </div>
           <h3 className="font-semibold text-gray-800 text-lg mb-1 truncate">{diary.title}</h3>
           <div className="flex items-center gap-2 text-xs text-gray-400">
             <span>{formattedDate}</span>

@@ -2,6 +2,7 @@
 export interface Diary {
   id: string; // UUID
   user_id?: string; // Supabase 用户ID（可选，本地模式可能没有）
+  notebook_id?: string; // 所属日记本ID
   title: string;
   content: string; // Markdown内容
   created_at: string; // ISO timestamp
@@ -11,14 +12,44 @@ export interface Diary {
   is_synced: boolean; // 是否已同步到云端
 }
 
+// 日记统计
+export interface DiaryStats {
+  total_count: number; // 总日记数
+  this_month_count: number; // 本月日记数
+  this_week_count: number; // 本周日记数
+  today_count: number; // 今日日记数
+  total_words: number; // 总字数
+  average_words: number; // 平均字数
+  longest_streak: number; // 最长连续天数
+  current_streak: number; // 当前连续天数
+  top_notebooks: { notebook_id: string; name: string; count: number }[]; // 日记本统计
+  monthly_data: { month: string; count: number }[]; // 月度统计
+}
+
 // 用户档案（对应Supabase profiles表）
 export interface UserProfile {
   id: string; // Supabase auth.users ID
   email: string;
+  nickname?: string; // 用户昵称
+  avatar?: string; // 头像URL或emoji
+  bio?: string; // 个人简介
   is_vip: boolean;
   vip_expire_at?: string; // ISO timestamp
   is_banned: boolean;
   created_at: string;
+}
+
+// 日记本
+export interface Notebook {
+  id: string; // UUID
+  user_id?: string; // 所属用户（可选）
+  name: string; // 日记本名称
+  color: string; // 颜色标识
+  icon: string; // 图标（emoji）
+  order: number; // 排序
+  is_default: boolean; // 是否默认日记本
+  created_at: string;
+  updated_at: string;
 }
 
 // 同步状态
