@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { supabase } from '@/lib/supabaseClient';
+import { authService } from '@/services/authService';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -110,32 +110,17 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     setIsLoading(true);
     setErrors(prev => ({ ...prev, general: undefined }));
     
-    if (!supabase) {
-      setErrors(prev => ({ ...prev, general: '认证服务未配置' }));
-      setIsLoading(false);
-      return;
-    }
-    
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password,
-      });
+      const { user, error } = await authService.signIn(email, password);
 
       if (error) {
-        if (error.message.includes('confirm your email')) {
-          setErrors(prev => ({ ...prev, general: '请先验证邮箱地址，检查邮箱收件箱' }));
-        } else {
-          setErrors(prev => ({ ...prev, general: '邮箱或密码错误' }));
-        }
+        setErrors(prev => ({ ...prev, general: error }));
         return;
       }
 
-      if (data.user?.email_confirmed_at) {
+      if (user) {
         onSuccess();
         onClose();
-      } else {
-        setErrors(prev => ({ ...prev, general: '请先验证邮箱地址，检查邮箱收件箱' }));
       }
     } catch (error) {
       setErrors(prev => ({ ...prev, general: '登录失败，请重试' }));
@@ -150,33 +135,22 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     setIsLoading(true);
     setErrors(prev => ({ ...prev, general: undefined }));
     
-    if (!supabase) {
-      setErrors(prev => ({ ...prev, general: '认证服务未配置' }));
-      setIsLoading(false);
-      return;
-    }
-    
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-      });
+      const nickname = email.split('@')[0];
+      const { user, error } = await authService.signUp(email, password, nickname);
 
       if (error) {
-        if (error.message.includes('already registered')) {
-          setErrors(prev => ({ ...prev, general: '该邮箱已被注册，请直接登录' }));
-        } else {
-          setErrors(prev => ({ ...prev, general: '注册失败: ' + error.message }));
-        }
+        setErrors(prev => ({ ...prev, general: error }));
         return;
       }
 
-      if (data.user) {
-        alert('注册成功！请检查邮箱完成验证后登录。');
+      if (user) {
         setMode('login');
         setEmail('');
         setPassword('');
         setConfirmPassword('');
+        onSuccess();
+        onClose();
       }
     } catch (error) {
       setErrors(prev => ({ ...prev, general: '注册失败，请重试' }));

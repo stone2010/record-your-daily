@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { Diary, Notebook, DiaryStats, UserProfile as UserProfileType } from '@/types';
 import localDB from '@/lib/localDatabase';
-import { supabase, getCurrentUserId } from '@/lib/supabaseClient';
+import { authService } from '@/services/authService';
 import { fullSync, getUserProfile, isActiveVip, getSyncStatus } from '@/services/syncService';
 import DiaryEditor from '@/components/DiaryEditor';
 import VIPModal from '@/components/VIPModal';
@@ -29,6 +29,7 @@ export default function HomePage() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const [userProfile, setUserProfile] = useState<UserProfileType | null>(null);
+  const [authMode, setAuthMode] = useState<'cloud' | 'local'>('local');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedNotebookId, setSelectedNotebookId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -57,31 +58,21 @@ export default function HomePage() {
       setNotebooks(localNotebooks);
       setStats(localStats);
 
-      if (!supabase) {
-        setIsLoading(false);
-        return;
-      }
-
-      const uid = await getCurrentUserId();
-      if (uid) {
+      const currentUser = await authService.getCurrentUser();
+      if (currentUser) {
         setIsLoggedIn(true);
-        setUserId(uid);
+        setUserId(currentUser.id);
+        setUserEmail(currentUser.email);
+        setUserProfile(currentUser);
+        setIsVip(currentUser.is_vip);
 
-        const { data: { user } } = await supabase.auth.getUser();
-        if (user?.email) {
-          setUserEmail(user.email);
+        const modeInfo = await authService.getAuthModeInfo();
+        setAuthMode(modeInfo.mode);
+
+        if (modeInfo.mode === 'cloud') {
+          const syncStatus = await getSyncStatus();
+          setPendingCount(syncStatus.pending_changes);
         }
-
-        const profile = await getUserProfile();
-        if (profile) {
-          setUserProfile(profile);
-        }
-
-        const vipStatus = await isActiveVip();
-        setIsVip(vipStatus);
-
-        const syncStatus = await getSyncStatus();
-        setPendingCount(syncStatus.pending_changes);
       }
     } catch (error) {
       console.error('加载数据失败:', error);
@@ -103,22 +94,21 @@ export default function HomePage() {
   };
 
   const handleLogout = async () => {
-    if (!supabase) return;
     if (!confirm('确定要退出登录吗？')) return;
-    await supabase.auth.signOut();
+    await authService.signOut();
     setIsLoggedIn(false);
     setIsVip(false);
     setUserEmail('');
     setUserId('');
     setUserProfile(null);
+    setAuthMode('local');
   };
 
   const handleUpdateProfile = async (updates: Partial<UserProfileType>) => {
-    if (!supabase || !userProfile) return;
     try {
-      const { error } = await supabase.from('profiles').update(updates).eq('id', userProfile.id);
-      if (!error) {
-        setUserProfile(prev => prev ? { ...prev, ...updates } : null);
+      const updated = await authService.updateProfile(updates);
+      if (updated) {
+        setUserProfile(updated);
         alert('资料更新成功！');
       }
     } catch (error) {
