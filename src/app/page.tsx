@@ -40,7 +40,12 @@ export default function HomePage() {
       const localDiaries = await localDB.getAllDiaries();
       setDiaries(localDiaries);
 
-      // 2. 检查登录状态
+      // 2. 检查登录状态（仅当supabase配置时）
+      if (!supabase) {
+        setIsLoading(false);
+        return;
+      }
+
       const uid = await getCurrentUserId();
       if (uid) {
         setIsLoggedIn(true);
