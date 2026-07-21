@@ -14,8 +14,10 @@ import UserProfileModal from '@/components/UserProfile';
 import NotebookSidebar from '@/components/NotebookSidebar';
 import CalendarView from '@/components/CalendarView';
 import StatsPanel from '@/components/StatsPanel';
+import HeatmapView from '@/components/HeatmapView';
+import SettingsPanel from '@/components/SettingsPanel';
 
-type ViewMode = 'list' | 'calendar' | 'stats';
+type ViewMode = 'list' | 'calendar' | 'stats' | 'heatmap' | 'settings';
 
 export default function HomePage() {
   const [diaries, setDiaries] = useState<Diary[]>([]);
@@ -317,7 +319,7 @@ export default function HomePage() {
                 <div className="hidden md:flex items-center gap-2 bg-gray-100 rounded-xl p-1">
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`px-4 py-2 rounded-lg transition-all ${
+                    className={`px-3 py-2 rounded-lg transition-all text-sm ${
                       viewMode === 'list' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
@@ -325,19 +327,35 @@ export default function HomePage() {
                   </button>
                   <button
                     onClick={() => setViewMode('calendar')}
-                    className={`px-4 py-2 rounded-lg transition-all ${
+                    className={`px-3 py-2 rounded-lg transition-all text-sm ${
                       viewMode === 'calendar' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
                     📅 日历
                   </button>
                   <button
+                    onClick={() => setViewMode('heatmap')}
+                    className={`px-3 py-2 rounded-lg transition-all text-sm ${
+                      viewMode === 'heatmap' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    🔥 热力
+                  </button>
+                  <button
                     onClick={() => setViewMode('stats')}
-                    className={`px-4 py-2 rounded-lg transition-all ${
+                    className={`px-3 py-2 rounded-lg transition-all text-sm ${
                       viewMode === 'stats' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
                     📊 统计
+                  </button>
+                  <button
+                    onClick={() => setViewMode('settings')}
+                    className={`px-3 py-2 rounded-lg transition-all text-sm ${
+                      viewMode === 'settings' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
+                    }`}
+                  >
+                    ⚙️ 设置
                   </button>
                 </div>
 
@@ -489,6 +507,25 @@ export default function HomePage() {
 
           {viewMode === 'stats' && stats && (
             <StatsPanel stats={stats} />
+          )}
+
+          {viewMode === 'heatmap' && (
+            <HeatmapView
+              diaries={diaries}
+              onSelectDate={handleSelectDate}
+              selectedDate={selectedDate}
+            />
+          )}
+
+          {viewMode === 'settings' && (
+            <SettingsPanel
+              stats={stats}
+              userProfile={userProfile}
+              isLoggedIn={isLoggedIn}
+              onUpdateProfile={handleUpdateProfile}
+              onLogout={handleLogout}
+              onLogin={handleLogin}
+            />
           )}
         </main>
 
