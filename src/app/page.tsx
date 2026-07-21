@@ -169,7 +169,7 @@ export default function HomePage() {
     setIsSaving(true);
     try {
       const defaultNb = await localDB.getDefaultNotebook();
-      const notebookId = editingDiary?.notebook_id || selectedNotebookId || defaultNb.id;
+      const notebookId = editingDiary?.notebook_id || selectedNotebookId || defaultNb?.id;
 
       if (editingDiary) {
         await localDB.updateDiary(editingDiary.id, { ...data, notebook_id: notebookId });
@@ -189,6 +189,11 @@ export default function HomePage() {
 
       setShowEditor(false);
       setEditingDiary(null);
+      
+      // 确保切回列表视图，让用户看到刚写的日记
+      setViewMode('list');
+      setSelectedNotebookId(null);
+      setSelectedDate(null);
     } catch (error) {
       console.error('保存失败:', error);
       alert(`保存失败: ${error instanceof Error ? error.message : '未知错误'}`);
@@ -316,46 +321,46 @@ export default function HomePage() {
               </div>
 
               <div className="flex items-center gap-4">
-                <div className="hidden md:flex items-center gap-2 bg-gray-100 rounded-xl p-1">
+                <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 flex-wrap">
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`px-3 py-2 rounded-lg transition-all text-sm ${
+                    className={`px-2 sm:px-3 py-2 rounded-lg transition-all text-sm ${
                       viewMode === 'list' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
-                    📝 列表
+                    📝 <span className="hidden sm:inline">列表</span>
                   </button>
                   <button
                     onClick={() => setViewMode('calendar')}
-                    className={`px-3 py-2 rounded-lg transition-all text-sm ${
+                    className={`px-2 sm:px-3 py-2 rounded-lg transition-all text-sm ${
                       viewMode === 'calendar' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
-                    📅 日历
+                    📅 <span className="hidden sm:inline">日历</span>
                   </button>
                   <button
                     onClick={() => setViewMode('heatmap')}
-                    className={`px-3 py-2 rounded-lg transition-all text-sm ${
+                    className={`px-2 sm:px-3 py-2 rounded-lg transition-all text-sm ${
                       viewMode === 'heatmap' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
-                    🔥 热力
+                    🔥 <span className="hidden sm:inline">热力</span>
                   </button>
                   <button
                     onClick={() => setViewMode('stats')}
-                    className={`px-3 py-2 rounded-lg transition-all text-sm ${
+                    className={`px-2 sm:px-3 py-2 rounded-lg transition-all text-sm ${
                       viewMode === 'stats' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
-                    📊 统计
+                    📊 <span className="hidden sm:inline">统计</span>
                   </button>
                   <button
                     onClick={() => setViewMode('settings')}
-                    className={`px-3 py-2 rounded-lg transition-all text-sm ${
+                    className={`px-2 sm:px-3 py-2 rounded-lg transition-all text-sm ${
                       viewMode === 'settings' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
-                    ⚙️ 设置
+                    ⚙️ <span className="hidden sm:inline">设置</span>
                   </button>
                 </div>
 
