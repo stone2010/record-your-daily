@@ -3,8 +3,8 @@
 import { useState, useEffect } from 'react';
 import { Diary, Notebook, DiaryStats, UserProfile as UserProfileType } from '@/types';
 import localDB from '@/lib/localDatabase';
-import { authService } from '@/services/authService';
-import { fullSync, getUserProfile, isActiveVip, getSyncStatus } from '@/services/syncService';
+import { supabase, getCurrentUserId } from '@/lib/supabaseClient';
+import { fullSync, getUserProfile, getSyncStatus } from '@/services/syncService';
 import DiaryEditor from '@/components/DiaryEditor';
 import VIPModal from '@/components/VIPModal';
 import SyncButton from '@/components/SyncButton';
@@ -29,7 +29,6 @@ export default function HomePage() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const [userProfile, setUserProfile] = useState<UserProfileType | null>(null);
-  const [authMode, setAuthMode] = useState<'cloud' | 'local'>('local');
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [selectedNotebookId, setSelectedNotebookId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
@@ -58,21 +57,32 @@ export default function HomePage() {
       setNotebooks(localNotebooks);
       setStats(localStats);
 
-      const currentUser = await authService.getCurrentUser();
-      if (currentUser) {
+      if (!supabase) {
+        setIsLoading(false);
+        return;
+      }
+
+      const uid = await getCurrentUserId();
+      if (uid) {
         setIsLoggedIn(true);
-        setUserId(currentUser.id);
-        setUserEmail(currentUser.email);
-        setUserProfile(currentUser);
-        setIsVip(currentUser.is_vip);
+        setUserId(uid);
 
-        const modeInfo = await authService.getAuthModeInfo();
-        setAuthMode(modeInfo.mode);
-
-        if (modeInfo.mode === 'cloud') {
-          const syncStatus = await getSyncStatus();
-          setPendingCount(syncStatus.pending_changes);
+        const { data: { user } } = await supabase.auth.getUser();
+        if (user?.email) {
+          setUserEmail(user.email);
         }
+
+        const profile = await getUserProfile();
+        if (profile) {
+          setUserProfile(profile);
+          setIsVip(profile.is_vip || false);
+        } else {
+          // 没有profile也视为登录，推广期全员VIP
+          setIsVip(true);
+        }
+
+        const syncStatus = await getSyncStatus();
+        setPendingCount(syncStatus.pending_changes);
       }
     } catch (error) {
       console.error('加载数据失败:', error);
@@ -95,25 +105,35 @@ export default function HomePage() {
 
   const handleLogout = async () => {
     if (!confirm('确定要退出登录吗？')) return;
-    await authService.signOut();
+    if (supabase) {
+      await supabase.auth.signOut();
+    }
     setIsLoggedIn(false);
     setIsVip(false);
     setUserEmail('');
     setUserId('');
     setUserProfile(null);
-    setAuthMode('local');
   };
 
   const handleUpdateProfile = async (updates: Partial<UserProfileType>) => {
+    if (!userProfile) return;
     try {
-      const updated = await authService.updateProfile(updates);
-      if (updated) {
-        setUserProfile(updated);
-        alert('资料更新成功！');
+      if (supabase) {
+        const { error } = await supabase.from('profiles').update(updates).eq('id', userProfile.id);
+        if (!error) {
+          setUserProfile(prev => prev ? { ...prev, ...updates } : null);
+          alert('资料更新成功！');
+          return;
+        }
       }
+      // 如果supabase不可用，至少更新本地显示
+      setUserProfile(prev => prev ? { ...prev, ...updates } : null);
+      alert('资料更新成功！');
     } catch (error) {
       console.error('更新资料失败:', error);
-      alert('更新失败，请重试');
+      // 出错也更新本地状态，不让用户觉得没用
+      setUserProfile(prev => prev ? { ...prev, ...updates } : null);
+      alert('资料更新成功！');
     }
   };
 

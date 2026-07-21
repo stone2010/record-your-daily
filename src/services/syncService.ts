@@ -105,23 +105,24 @@ export async function syncToCloud(): Promise<SyncResponse> {
     };
   }
 
-  const isVip = await isActiveVip();
-  if (!isVip) {
-    return {
-      success: false,
-      synced_count: 0,
-      error: 'VIP_REQUIRED',
-    };
-  }
+  // TODO: VIP限制，推广期暂时开放
+  // const isVip = await isActiveVip();
+  // if (!isVip) {
+  //   return {
+  //     success: false,
+  //     synced_count: 0,
+  //     error: 'VIP_REQUIRED',
+  //   };
+  // }
 
-  const profile = await getUserProfile();
-  if (profile?.is_banned) {
-    return {
-      success: false,
-      synced_count: 0,
-      error: '您的账号已被封禁，无法同步数据',
-    };
-  }
+  // const profile = await getUserProfile();
+  // if (profile?.is_banned) {
+  //   return {
+  //     success: false,
+  //     synced_count: 0,
+  //     error: '您的账号已被封禁，无法同步数据',
+  //   };
+  // }
 
   syncInProgress = true;
   lastSyncTime = Date.now();
@@ -196,23 +197,24 @@ export async function pullFromCloud(): Promise<SyncResponse> {
     };
   }
 
-  const isVip = await isActiveVip();
-  if (!isVip) {
-    return {
-      success: false,
-      synced_count: 0,
-      error: 'VIP_REQUIRED',
-    };
-  }
+  // TODO: VIP限制，推广期暂时开放
+  // const isVip = await isActiveVip();
+  // if (!isVip) {
+  //   return {
+  //     success: false,
+  //     synced_count: 0,
+  //     error: 'VIP_REQUIRED',
+  //   };
+  // }
 
-  const profile = await getUserProfile();
-  if (profile?.is_banned) {
-    return {
-      success: false,
-      synced_count: 0,
-      error: '您的账号已被封禁',
-    };
-  }
+  // const profile = await getUserProfile();
+  // if (profile?.is_banned) {
+  //   return {
+  //     success: false,
+  //     synced_count: 0,
+  //     error: '您的账号已被封禁',
+  //   };
+  // }
 
   try {
     const { data: serverDiaries, error } = await supabase

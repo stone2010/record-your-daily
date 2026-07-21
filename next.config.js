@@ -7,6 +7,9 @@ const nextConfig = {
   images: {
     unoptimized: true,
   },
+  experimental: {
+    useLightningcss: false,
+  },
   async headers() {
     return [
       {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { authService } from '@/services/authService';
+import { supabase } from '@/lib/supabaseClient';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -111,19 +111,37 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     setErrors(prev => ({ ...prev, general: undefined }));
     
     try {
-      const { user, error } = await authService.signIn(email, password);
-
-      if (error) {
-        setErrors(prev => ({ ...prev, general: error }));
+      if (!supabase) {
+        setErrors(prev => ({ ...prev, general: '网络连接失败，请检查网络后重试' }));
         return;
       }
 
-      if (user) {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      });
+
+      if (error) {
+        let msg = '登录失败，请检查邮箱和密码';
+        if (error.message.includes('Invalid login credentials')) {
+          msg = '邮箱或密码错误';
+        } else if (error.message.includes('Email not confirmed')) {
+          msg = '请先验证邮箱地址，检查邮箱收件箱';
+        } else if (error.message.includes('too many')) {
+          msg = '操作太频繁，请稍后再试';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          msg = '网络连接失败，请检查网络后重试';
+        }
+        setErrors(prev => ({ ...prev, general: msg }));
+        return;
+      }
+
+      if (data.user) {
         onSuccess();
         onClose();
       }
-    } catch (error) {
-      setErrors(prev => ({ ...prev, general: '登录失败，请重试' }));
+    } catch (err) {
+      setErrors(prev => ({ ...prev, general: '网络异常，请稍后重试' }));
     } finally {
       setIsLoading(false);
     }
@@ -136,24 +154,44 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     setErrors(prev => ({ ...prev, general: undefined }));
     
     try {
-      const nickname = email.split('@')[0];
-      const { user, error } = await authService.signUp(email, password, nickname);
-
-      if (error) {
-        setErrors(prev => ({ ...prev, general: error }));
+      if (!supabase) {
+        setErrors(prev => ({ ...prev, general: '网络连接失败，请检查网络后重试' }));
         return;
       }
 
-      if (user) {
+      const nickname = email.split('@')[0];
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            nickname,
+          },
+        },
+      });
+
+      if (error) {
+        let msg = '注册失败，请稍后重试';
+        if (error.message.includes('already registered') || error.message.includes('User already registered')) {
+          msg = '该邮箱已被注册，请直接登录';
+        } else if (error.message.includes('too many')) {
+          msg = '操作太频繁，请稍后再试';
+        } else if (error.message.includes('network') || error.message.includes('fetch')) {
+          msg = '网络连接失败，请检查网络后重试';
+        }
+        setErrors(prev => ({ ...prev, general: msg }));
+        return;
+      }
+
+      if (data.user) {
         setMode('login');
         setEmail('');
         setPassword('');
         setConfirmPassword('');
-        onSuccess();
-        onClose();
+        alert('注册成功！请检查邮箱完成验证后登录。');
       }
-    } catch (error) {
-      setErrors(prev => ({ ...prev, general: '注册失败，请重试' }));
+    } catch (err) {
+      setErrors(prev => ({ ...prev, general: '网络异常，请稍后重试' }));
     } finally {
       setIsLoading(false);
     }
