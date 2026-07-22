@@ -40,6 +40,7 @@ export default function HomePage() {
   const [showVipModal, setShowVipModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
 
   useEffect(() => {
     loadLocalData();
@@ -356,15 +357,26 @@ export default function HomePage() {
         isLoggedIn={isLoggedIn}
         onLogin={handleLogin}
         onLogout={handleLogout}
+        isMobileOpen={mobileSidebarOpen}
+        onMobileClose={() => setMobileSidebarOpen(false)}
       />
 
-      <div className="flex-1 ml-60">
+      <div className="flex-1 md:ml-60">
         <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <h1 className="text-lg font-semibold text-gray-900">{getTitle()}</h1>
+          <div className="px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-4">
+              {/* 移动端菜单按钮 */}
+              <button
+                onClick={() => setMobileSidebarOpen(true)}
+                className="md:hidden flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+                </svg>
+              </button>
+              <h1 className="text-base sm:text-lg font-semibold text-gray-900 truncate">{getTitle()}</h1>
               
-              {/* 搜索按钮 */}
+              {/* 搜索按钮 - 桌面端 */}
               <button
                 onClick={() => setShowSearch(true)}
                 className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors text-sm"
@@ -374,7 +386,16 @@ export default function HomePage() {
               </button>
             </div>
 
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              {/* 移动端搜索按钮 */}
+              <button
+                onClick={() => setShowSearch(true)}
+                className="sm:hidden flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 transition-colors"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                </svg>
+              </button>
               <SyncButton
                 isVip={isVip}
                 isLoggedIn={isLoggedIn}
@@ -404,19 +425,19 @@ export default function HomePage() {
           </div>
         </header>
 
-        <main className="p-6">
+        <main className="p-3 sm:p-6">
           {/* 工具栏 */}
-          <div className="flex flex-wrap items-center gap-3 mb-4">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3 mb-4">
             <button
               onClick={handleCreateDiary}
-              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+              className="flex items-center gap-1 sm:gap-2 px-3 sm:px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 active:bg-blue-800 transition-colors text-sm font-medium shadow-sm"
             >
-              <span>+</span>
+              <span className="text-lg leading-none">+</span>
               <span>写日记</span>
             </button>
 
             {/* 筛选器 */}
-            <div className="flex items-center gap-2">
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {[
                 { key: 'all', label: '全部' },
                 { key: 'favorite', label: '⭐' },
@@ -426,10 +447,10 @@ export default function HomePage() {
                 <button
                   key={f.key}
                   onClick={() => { setFilterType(f.key as FilterType); setSelectedTag(null); }}
-                  className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                  className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-sm transition-colors ${
                     filterType === f.key
                       ? 'bg-blue-100 text-blue-700 font-medium'
-                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200 active:bg-gray-300'
                   }`}
                   title={f.key === 'favorite' ? '收藏' : f.key === 'pinned' ? '置顶' : f.key === 'recent' ? '最近访问' : '全部'}
                 >
@@ -491,7 +512,7 @@ export default function HomePage() {
               <p className="text-sm text-gray-400">点击上方按钮，写下第一篇日记</p>
             </div>
           ) : (
-            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {filteredDiaries.map((diary) => {
                 const nb = notebooks.find(n => n.id === diary.notebook_id);
                 return (
@@ -513,10 +534,10 @@ export default function HomePage() {
 
       {/* 搜索弹窗 */}
       {showSearch && (
-        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-24">
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-12 sm:pt-24">
           <div className="absolute inset-0 bg-black/50" onClick={() => setShowSearch(false)} />
-          <div className="relative w-full max-w-xl mx-4">
-            <div className="bg-white rounded-lg shadow-xl p-4">
+          <div className="relative w-full max-w-xl mx-3 sm:mx-4">
+            <div className="bg-white rounded-xl shadow-xl p-3 sm:p-4">
               <input
                 type="text"
                 value={searchQuery}

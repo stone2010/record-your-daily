@@ -15,6 +15,8 @@ interface NotebookSidebarProps {
   isLoggedIn: boolean;
   onLogin: () => void;
   onLogout: () => void;
+  isMobileOpen?: boolean;
+  onMobileClose?: () => void;
 }
 
 const NOTEBOOK_COLORS = [
@@ -34,6 +36,8 @@ export default function NotebookSidebar({
   isLoggedIn,
   onLogin,
   onLogout,
+  isMobileOpen = false,
+  onMobileClose,
 }: NotebookSidebarProps) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [newName, setNewName] = useState('');
@@ -93,9 +97,22 @@ export default function NotebookSidebar({
     onReorder(newOrder.map(n => n.id));
   };
 
+  const handleSelectNotebook = (id: string | null) => {
+    onSelectNotebook(id);
+    if (onMobileClose) onMobileClose();
+  };
+
   return (
     <>
-      <aside className="w-60 bg-white border-r border-gray-200 h-screen flex flex-col fixed left-0 top-0">
+      {/* 移动端遮罩 */}
+      {isMobileOpen && (
+        <div className="fixed inset-0 bg-black/50 z-40 md:hidden" onClick={onMobileClose} />
+      )}
+
+      {/* 侧边栏 */}
+      <aside className={`w-60 bg-white border-r border-gray-200 h-screen flex flex-col fixed left-0 top-0 z-50 transition-transform duration-300 md:translate-x-0 ${
+        isMobileOpen ? 'translate-x-0' : '-translate-x-full'
+      }`}>
         <div className="p-4 border-b border-gray-100">
           <div className="flex items-center gap-2">
             <span className="text-2xl">📔</span>
@@ -105,7 +122,7 @@ export default function NotebookSidebar({
 
         <nav className="flex-1 overflow-y-auto py-2">
           <button
-            onClick={() => onSelectNotebook(null)}
+            onClick={() => handleSelectNotebook(null)}
             className={`w-full flex items-center gap-3 px-4 py-2 text-left transition-colors ${
               !selectedNotebookId
                 ? 'bg-blue-50 text-blue-700 font-medium'
@@ -185,7 +202,7 @@ export default function NotebookSidebar({
                   </div>
                 ) : (
                   <div
-                    onClick={() => onSelectNotebook(notebook.id)}
+                    onClick={() => handleSelectNotebook(notebook.id)}
                     className={`group relative flex items-center gap-2 px-4 py-2.5 cursor-pointer transition-colors ${
                       selectedNotebookId === notebook.id
                         ? 'bg-blue-50 text-blue-700 font-medium'

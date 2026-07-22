@@ -230,25 +230,21 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="min-h-screen bg-gray-50 flex">
-      <div className="flex-1 ml-60">
+    <div className="min-h-screen bg-gray-50">
         <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
-          <div className="px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-4">
+          <div className="px-4 sm:px-6 py-3 sm:py-4 flex items-center gap-3">
               <button
                 onClick={() => router.push('/')}
-                className="flex items-center gap-2 text-gray-600 hover:text-gray-900 transition-colors"
+                className="flex items-center justify-center w-9 h-9 rounded-full hover:bg-gray-100 active:bg-gray-200 transition-colors"
               >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
                 </svg>
-                <span className="text-sm">返回</span>
               </button>
               <h1 className="text-lg font-semibold text-gray-900">设置</h1>
-            </div>
           </div>
           
-          <nav className="flex border-b border-gray-200 overflow-x-auto">
+          <nav className="flex border-b border-gray-200 overflow-x-auto scrollbar-hide">
             {[
               { key: 'stats', icon: '📊', label: '统计' },
               { key: 'calendar', icon: '📅', label: '日历' },
@@ -261,24 +257,24 @@ export default function SettingsPage() {
               <button
                 key={tab.key}
                 onClick={() => setSettingsTab(tab.key as SettingsTab)}
-                className={`flex-1 flex items-center justify-center gap-2 py-3 text-sm font-medium transition-colors whitespace-nowrap min-w-[80px] ${
+                className={`flex-1 flex items-center justify-center gap-1 sm:gap-2 py-3 text-xs sm:text-sm font-medium transition-colors whitespace-nowrap min-w-[56px] sm:min-w-[80px] ${
                   settingsTab === tab.key
                     ? 'text-blue-600 border-b-2 border-blue-600 bg-blue-50'
                     : 'text-gray-500 hover:text-gray-700 hover:bg-gray-50'
                 }`}
               >
-                <span>{tab.icon}</span>
+                <span className="text-base sm:text-lg">{tab.icon}</span>
                 <span className="hidden sm:inline">{tab.label}</span>
               </button>
             ))}
           </nav>
         </header>
 
-        <main className="p-6">
+        <main className="p-3 sm:p-6 max-w-3xl mx-auto">
           {settingsTab === 'stats' && stats && <StatsPanel stats={stats} />}
           
           {settingsTab === 'calendar' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
               <CalendarView
                 diaries={diaries}
                 onSelectDate={(date) => {
@@ -290,7 +286,7 @@ export default function SettingsPage() {
           )}
           
           {settingsTab === 'heatmap' && (
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-3 sm:p-6">
               <HeatmapView
                 diaries={diaries}
                 onSelectDate={(date) => {
@@ -302,8 +298,8 @@ export default function SettingsPage() {
           )}
           
           {settingsTab === 'account' && (
-            <div className="space-y-6 max-w-2xl">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="space-y-4 sm:space-y-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">账号信息</h2>
                 {isLoggedIn ? (
                   <div className="space-y-4">
@@ -345,23 +341,23 @@ export default function SettingsPage() {
                 )}
               </div>
 
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">数据概览</h2>
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-semibold text-gray-900">{stats?.total_count || 0}</div>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
+                  <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                    <div className="text-xl sm:text-2xl font-semibold text-gray-900">{stats?.total_count || 0}</div>
                     <div className="text-xs text-gray-500 mt-1">日记总数</div>
                   </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-semibold text-gray-900">{(stats?.total_words || 0).toLocaleString()}</div>
+                  <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                    <div className="text-xl sm:text-2xl font-semibold text-gray-900">{(stats?.total_words || 0).toLocaleString()}</div>
                     <div className="text-xs text-gray-500 mt-1">总字数</div>
                   </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-semibold text-orange-500">{stats?.current_streak || 0}</div>
+                  <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                    <div className="text-xl sm:text-2xl font-semibold text-orange-500">{stats?.current_streak || 0}</div>
                     <div className="text-xs text-gray-500 mt-1">连续天数</div>
                   </div>
-                  <div className="text-center p-4 bg-gray-50 rounded-lg">
-                    <div className="text-2xl font-semibold text-blue-600">{notebooks.length}</div>
+                  <div className="text-center p-3 sm:p-4 bg-gray-50 rounded-lg">
+                    <div className="text-xl sm:text-2xl font-semibold text-blue-600">{notebooks.length}</div>
                     <div className="text-xs text-gray-500 mt-1">日记本</div>
                   </div>
                 </div>
@@ -381,39 +377,39 @@ export default function SettingsPage() {
           )}
           
           {settingsTab === 'export' && (
-            <div className="max-w-2xl space-y-6">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="space-y-4 sm:space-y-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">导出数据</h2>
                 
-                <div className="space-y-6">
+                <div className="space-y-4 sm:space-y-6">
                   <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">导出格式</label>
                     <div className="grid grid-cols-2 gap-3">
                       <button
                         onClick={() => setExportFormat('json')}
-                        className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                        className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg border-2 transition-all ${
                           exportFormat === 'json'
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
-                        <span className="text-2xl">📄</span>
+                        <span className="text-xl sm:text-2xl">📄</span>
                         <div className="text-left">
-                          <div className="font-medium text-gray-900">JSON</div>
+                          <div className="font-medium text-gray-900 text-sm sm:text-base">JSON</div>
                           <div className="text-xs text-gray-500">完整数据，适合迁移</div>
                         </div>
                       </button>
                       <button
                         onClick={() => setExportFormat('markdown')}
-                        className={`flex items-center gap-3 p-4 rounded-lg border-2 transition-all ${
+                        className={`flex items-center gap-2 sm:gap-3 p-3 sm:p-4 rounded-lg border-2 transition-all ${
                           exportFormat === 'markdown'
                             ? 'border-blue-500 bg-blue-50'
                             : 'border-gray-200 hover:border-gray-300'
                         }`}
                       >
-                        <span className="text-2xl">📝</span>
+                        <span className="text-xl sm:text-2xl">📝</span>
                         <div className="text-left">
-                          <div className="font-medium text-gray-900">Markdown</div>
+                          <div className="font-medium text-gray-900 text-sm sm:text-base">Markdown</div>
                           <div className="text-xs text-gray-500">易读格式，适合分享</div>
                         </div>
                       </button>
@@ -518,8 +514,8 @@ export default function SettingsPage() {
           )}
           
           {settingsTab === 'import' && (
-            <div className="max-w-2xl space-y-6">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div className="space-y-4 sm:space-y-6">
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">导入数据</h2>
                 
                 {!importFile ? (
@@ -631,8 +627,8 @@ export default function SettingsPage() {
           )}
           
           {settingsTab === 'shortcuts' && (
-            <div className="max-w-2xl">
-              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <div>
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-6">快捷键</h2>
                 <div className="space-y-4">
                   <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
@@ -674,7 +670,6 @@ export default function SettingsPage() {
             </div>
           )}
         </main>
-      </div>
       
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={handleAuthSuccess} />
     </div>
