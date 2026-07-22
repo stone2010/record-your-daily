@@ -286,10 +286,10 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50">
+    <div className="min-h-screen bg-gray-50">
       <div className="flex">
         {showSidebar && (
-          <div className="hidden lg:flex">
+          <div className="hidden lg:block w-64 flex-shrink-0">
             <NotebookSidebar
               notebooks={notebooks}
               selectedNotebookId={selectedNotebookId}
@@ -299,172 +299,170 @@ export default function HomePage() {
           </div>
         )}
 
-        <div className={`flex-1 ${showSidebar ? 'lg:ml-64' : ''}`}>
-          <header className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-40">
-          <div className="max-w-6xl mx-auto px-4 py-4">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <button
-                  onClick={() => setShowSidebar(!showSidebar)}
-                  className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-all"
-                >
-                  <span className="text-xl">☰</span>
-                </button>
+        <div className="flex-1 min-w-0">
+          <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
-                  <div className="text-3xl">📔</div>
-                  <h1 className="text-2xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-                    我的日记
-                  </h1>
-                </div>
-              </div>
-
-              <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
                   <button
-                    onClick={() => setViewMode('list')}
-                    className={`px-3 sm:px-4 py-2 rounded-lg transition-all text-sm ${
-                      viewMode === 'list' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
-                    }`}
+                    onClick={() => setShowSidebar(!showSidebar)}
+                    className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
                   >
-                    📝 <span className="hidden sm:inline">日记</span>
+                    <span className="text-xl">☰</span>
                   </button>
-                  <button
-                    onClick={() => setViewMode('settings')}
-                    className={`px-3 sm:px-4 py-2 rounded-lg transition-all text-sm ${
-                      viewMode === 'settings' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    ⚙️ <span className="hidden sm:inline">更多</span>
-                  </button>
-                </div>
-
-                <SyncButton
-                  isVip={isVip}
-                  isLoggedIn={isLoggedIn}
-                  isSyncing={isSyncing}
-                  pendingCount={pendingCount}
-                  onSync={handleSync}
-                  onShowVipModal={() => setShowVipModal(true)}
-                  onLogin={handleLogin}
-                />
-
-                {isLoggedIn ? (
                   <div className="flex items-center gap-2">
+                    <div className="text-2xl">📔</div>
+                    <h1 className="text-xl font-semibold text-gray-800">我的日记</h1>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
                     <button
-                      onClick={() => setShowProfileModal(true)}
-                      className="w-10 h-10 rounded-full bg-gradient-to-r from-indigo-500 to-purple-500 flex items-center justify-center text-white text-lg hover:shadow-lg transition-all"
+                      onClick={() => setViewMode('list')}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                        viewMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                      }`}
                     >
-                      {userProfile?.avatar || userEmail.charAt(0).toUpperCase()}
+                      📝 日记
                     </button>
-                    <div className="hidden sm:block">
-                      <div className="text-sm font-medium text-gray-800">
-                        {userProfile?.nickname || userEmail}
-                        {isVip && <span className="ml-1 text-amber-500">⭐</span>}
+                    <button
+                      onClick={() => setViewMode('settings')}
+                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+                        viewMode === 'settings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
+                      }`}
+                    >
+                      ⚙️ 更多
+                    </button>
+                  </div>
+
+                  <SyncButton
+                    isVip={isVip}
+                    isLoggedIn={isLoggedIn}
+                    isSyncing={isSyncing}
+                    pendingCount={pendingCount}
+                    onSync={handleSync}
+                    onShowVipModal={() => setShowVipModal(true)}
+                    onLogin={handleLogin}
+                  />
+
+                  {isLoggedIn ? (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setShowProfileModal(true)}
+                        className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 text-sm font-medium hover:bg-gray-300 transition-colors"
+                      >
+                        {userProfile?.avatar || userEmail.charAt(0).toUpperCase()}
+                      </button>
+                      <div className="hidden sm:block">
+                        <div className="text-sm font-medium text-gray-800">
+                          {userProfile?.nickname || userEmail}
+                          {isVip && <span className="ml-1 text-amber-500">⭐</span>}
+                        </div>
+                        <button onClick={handleLogout} className="text-xs text-gray-500 hover:text-gray-700">
+                          退出
+                        </button>
                       </div>
-                      <button onClick={handleLogout} className="text-xs text-gray-400 hover:text-gray-600">
-                        退出
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={handleLogin}
+                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
+                      >
+                        登录
+                      </button>
+                      <button
+                        onClick={handleRegister}
+                        className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 transition-colors"
+                      >
+                        注册
                       </button>
                     </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-2">
-                    <button
-                      onClick={handleLogin}
-                      className="text-sm text-primary-600 hover:text-primary-700 font-medium"
-                    >
-                      登录
-                    </button>
-                    <button
-                      onClick={handleRegister}
-                      className="text-sm bg-gradient-to-r from-indigo-500 to-purple-500 text-white px-4 py-2 rounded-xl hover:from-indigo-600 hover:to-purple-600 transition-all shadow-md hover:shadow-lg"
-                    >
-                      注册
-                    </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
-            </div>
 
-            {selectedNotebook && (
-              <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
-                <span>{selectedNotebook.icon}</span>
-                <span>{selectedNotebook.name}</span>
-                <button onClick={() => setSelectedNotebookId(null)} className="text-primary-500 hover:text-primary-600">
-                  清除筛选
-                </button>
-              </div>
-            )}
-
-            {selectedDate && (
-              <div className="mt-3 flex items-center gap-2 text-sm text-gray-500">
-                <span>📅</span>
-                <span>{selectedDate}</span>
-                <button onClick={() => setSelectedDate(null)} className="text-primary-500 hover:text-primary-600">
-                  清除筛选
-                </button>
-              </div>
-            )}
-          </div>
-        </header>
-
-        <main className="max-w-6xl mx-auto px-4 py-6">
-          {viewMode === 'list' && (
-            <>
-              {filteredDiaries.length === 0 ? (
-                <div className="text-center py-20">
-                  <div className="text-8xl mb-6">📝</div>
-                  <h2 className="text-2xl font-bold text-gray-700 mb-2">还没有日记</h2>
-                  <p className="text-gray-500 mb-8">点击下方按钮，写下你的第一篇日记</p>
-                  <button
-                    onClick={handleCreateDiary}
-                    className="px-8 py-4 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-xl hover:from-indigo-600 hover:to-purple-600 transition-all shadow-lg hover:shadow-xl text-lg font-medium"
-                  >
-                    写日记
+              {selectedNotebook && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
+                  <span>{selectedNotebook.icon}</span>
+                  <span>{selectedNotebook.name}</span>
+                  <button onClick={() => setSelectedNotebookId(null)} className="text-blue-600 hover:text-blue-700 text-xs">
+                    清除筛选
                   </button>
                 </div>
-              ) : (
-                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                  {filteredDiaries.map((diary) => {
-                    const nb = notebooks.find(n => n.id === diary.notebook_id);
-                    return (
-                      <DiaryCard
-                        key={diary.id}
-                        diary={diary}
-                        notebook={nb}
-                        onEdit={handleEditDiary}
-                        onDelete={handleDeleteDiary}
-                      />
-                    );
-                  })}
+              )}
+
+              {selectedDate && (
+                <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
+                  <span>📅</span>
+                  <span>{selectedDate}</span>
+                  <button onClick={() => setSelectedDate(null)} className="text-blue-600 hover:text-blue-700 text-xs">
+                    清除筛选
+                  </button>
                 </div>
               )}
-            </>
-          )}
+            </div>
+          </header>
 
-          {viewMode === 'settings' && (
-            <SettingsPanel
-              diaries={diaries}
-              stats={stats}
-              userProfile={userProfile}
-              isLoggedIn={isLoggedIn}
-              onUpdateProfile={handleUpdateProfile}
-              onLogout={handleLogout}
-              onLogin={handleLogin}
-              onSelectDate={handleSelectDate}
-              selectedDate={selectedDate}
-              onEditDiary={handleEditDiary}
-              filteredDiaries={filteredDiaries}
-            />
-          )}
-        </main>
+          <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
+            {viewMode === 'list' && (
+              <>
+                {filteredDiaries.length === 0 ? (
+                  <div className="text-center py-16">
+                    <div className="text-6xl mb-4">📝</div>
+                    <h2 className="text-lg font-semibold text-gray-700 mb-2">还没有日记</h2>
+                    <p className="text-gray-500 mb-6">点击下方按钮，写下你的第一篇日记</p>
+                    <button
+                      onClick={handleCreateDiary}
+                      className="px-6 py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
+                    >
+                      写日记
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                    {filteredDiaries.map((diary) => {
+                      const nb = notebooks.find(n => n.id === diary.notebook_id);
+                      return (
+                        <DiaryCard
+                          key={diary.id}
+                          diary={diary}
+                          notebook={nb}
+                          onEdit={handleEditDiary}
+                          onDelete={handleDeleteDiary}
+                        />
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
 
-        <button
-          onClick={handleCreateDiary}
-          className="fixed bottom-6 right-6 w-16 h-16 bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-full shadow-xl hover:shadow-2xl transition-all flex items-center justify-center text-2xl z-50 hover:scale-110"
-          aria-label="新建日记"
-        >
-          +
-        </button>
+            {viewMode === 'settings' && (
+              <SettingsPanel
+                diaries={diaries}
+                stats={stats}
+                userProfile={userProfile}
+                isLoggedIn={isLoggedIn}
+                onUpdateProfile={handleUpdateProfile}
+                onLogout={handleLogout}
+                onLogin={handleLogin}
+                onSelectDate={handleSelectDate}
+                selectedDate={selectedDate}
+                onEditDiary={handleEditDiary}
+                filteredDiaries={filteredDiaries}
+              />
+            )}
+          </main>
+
+          <button
+            onClick={handleCreateDiary}
+            className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center text-xl z-50 hover:bg-blue-700"
+            aria-label="新建日记"
+          >
+            +
+          </button>
         </div>
       </div>
 
