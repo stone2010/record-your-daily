@@ -12,12 +12,9 @@ import DiaryCard from '@/components/DiaryCard';
 import AuthModal from '@/components/AuthModal';
 import UserProfileModal from '@/components/UserProfile';
 import NotebookSidebar from '@/components/NotebookSidebar';
-import CalendarView from '@/components/CalendarView';
-import StatsPanel from '@/components/StatsPanel';
-import HeatmapView from '@/components/HeatmapView';
 import SettingsPanel from '@/components/SettingsPanel';
 
-type ViewMode = 'list' | 'calendar' | 'stats' | 'heatmap' | 'settings';
+type ViewMode = 'list' | 'settings';
 
 export default function HomePage() {
   const [diaries, setDiaries] = useState<Diary[]>([]);
@@ -322,46 +319,22 @@ export default function HomePage() {
               </div>
 
               <div className="flex items-center gap-4">
-                <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1 flex-wrap">
+                <div className="flex items-center gap-1 bg-gray-100 rounded-xl p-1">
                   <button
                     onClick={() => setViewMode('list')}
-                    className={`px-2 sm:px-3 py-2 rounded-lg transition-all text-sm ${
+                    className={`px-3 sm:px-4 py-2 rounded-lg transition-all text-sm ${
                       viewMode === 'list' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
-                    📝 <span className="hidden sm:inline">列表</span>
-                  </button>
-                  <button
-                    onClick={() => setViewMode('calendar')}
-                    className={`px-2 sm:px-3 py-2 rounded-lg transition-all text-sm ${
-                      viewMode === 'calendar' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    📅 <span className="hidden sm:inline">日历</span>
-                  </button>
-                  <button
-                    onClick={() => setViewMode('heatmap')}
-                    className={`px-2 sm:px-3 py-2 rounded-lg transition-all text-sm ${
-                      viewMode === 'heatmap' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    🔥 <span className="hidden sm:inline">热力</span>
-                  </button>
-                  <button
-                    onClick={() => setViewMode('stats')}
-                    className={`px-2 sm:px-3 py-2 rounded-lg transition-all text-sm ${
-                      viewMode === 'stats' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
-                    }`}
-                  >
-                    📊 <span className="hidden sm:inline">统计</span>
+                    📝 <span className="hidden sm:inline">日记</span>
                   </button>
                   <button
                     onClick={() => setViewMode('settings')}
-                    className={`px-2 sm:px-3 py-2 rounded-lg transition-all text-sm ${
+                    className={`px-3 sm:px-4 py-2 rounded-lg transition-all text-sm ${
                       viewMode === 'settings' ? 'bg-white shadow-sm text-primary-600' : 'text-gray-500 hover:text-gray-700'
                     }`}
                   >
-                    ⚙️ <span className="hidden sm:inline">设置</span>
+                    ⚙️ <span className="hidden sm:inline">更多</span>
                   </button>
                 </div>
 
@@ -468,69 +441,19 @@ export default function HomePage() {
             </>
           )}
 
-          {viewMode === 'calendar' && (
-            <div className="grid gap-6 lg:grid-cols-3">
-              <div className="lg:col-span-2">
-                <CalendarView
-                  diaries={diaries}
-                  onSelectDate={handleSelectDate}
-                  selectedDate={selectedDate}
-                />
-              </div>
-              <div className="lg:col-span-1">
-                <div className="bg-white rounded-2xl shadow-lg p-6">
-                  <h3 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                    <span>📅</span>
-                    {selectedDate ? `${selectedDate} 的日记` : '选择日期查看'}
-                  </h3>
-                  {selectedDate && filteredDiaries.length > 0 ? (
-                    <div className="space-y-3">
-                      {filteredDiaries.map((diary) => (
-                        <div
-                          key={diary.id}
-                          onClick={() => handleEditDiary(diary)}
-                          className="p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-all cursor-pointer"
-                        >
-                          <div className="font-medium text-gray-800">{diary.title}</div>
-                          <div className="text-sm text-gray-500 mt-1 line-clamp-2">{diary.content}</div>
-                          <div className="text-xs text-gray-400 mt-2">{new Date(diary.created_at).toLocaleTimeString()}</div>
-                        </div>
-                      ))}
-                    </div>
-                  ) : selectedDate ? (
-                    <div className="text-center py-8 text-gray-400">
-                      这一天没有日记
-                    </div>
-                  ) : (
-                    <div className="text-center py-8 text-gray-400">
-                      点击日历上的日期查看当天日记
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
-
-          {viewMode === 'stats' && stats && (
-            <StatsPanel stats={stats} />
-          )}
-
-          {viewMode === 'heatmap' && (
-            <HeatmapView
-              diaries={diaries}
-              onSelectDate={handleSelectDate}
-              selectedDate={selectedDate}
-            />
-          )}
-
           {viewMode === 'settings' && (
             <SettingsPanel
+              diaries={diaries}
               stats={stats}
               userProfile={userProfile}
               isLoggedIn={isLoggedIn}
               onUpdateProfile={handleUpdateProfile}
               onLogout={handleLogout}
               onLogin={handleLogin}
+              onSelectDate={handleSelectDate}
+              selectedDate={selectedDate}
+              onEditDiary={handleEditDiary}
+              filteredDiaries={filteredDiaries}
             />
           )}
         </main>
