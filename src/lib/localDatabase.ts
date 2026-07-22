@@ -32,7 +32,7 @@ interface DiaryDBSchema extends DBSchema {
 }
 
 const DB_NAME = 'diary-local-db';
-const DB_VERSION = 2;
+const DB_VERSION = 3;
 
 let dbInstance: IDBPDatabase<DiaryDBSchema> | null = null;
 
@@ -132,7 +132,7 @@ async function ensureDefaultNotebooksOnce(): Promise<void> {
 }
 
 export const localDB = {
-  async createDiary(title: string, content: string, userId?: string, notebookId?: string): Promise<Diary> {
+  async createDiary(title: string, content: string, userId?: string, notebookId?: string, tags: string[] = []): Promise<Diary> {
     const validation = validateDiaryData(title, content);
     if (!validation.valid) {
       throw new Error(validation.error);
@@ -150,13 +150,18 @@ export const localDB = {
       updated_at: now,
       is_deleted: false,
       is_synced: false,
+      is_pinned: false,
+      is_favorite: false,
+      tags,
+      word_count: content.length,
+      last_accessed_at: now,
     };
 
     await db.add('diaries', diary);
     return diary;
   },
 
-  async updateDiary(id: string, updates: Partial<Pick<Diary, 'title' | 'content' | 'notebook_id'>>): Promise<Diary> {
+  async updateDiary(id: string, updates: Partial<Pick<Diary, 'title' | 'content' | 'notebook_id' | 'is_pinned' | 'is_favorite' | 'tags'>>): Promise<Diary> {
     const db = await getDB();
     const existing = await db.get('diaries', id);
 
@@ -179,6 +184,10 @@ export const localDB = {
       title: newTitle.trim(),
       content: newContent,
       notebook_id: updates.notebook_id ?? existing.notebook_id,
+      is_pinned: updates.is_pinned ?? existing.is_pinned,
+      is_favorite: updates.is_favorite ?? existing.is_favorite,
+      tags: updates.tags ?? existing.tags,
+      word_count: newContent.length,
       updated_at: new Date().toISOString(),
       is_synced: false,
     };
@@ -213,7 +222,171 @@ export const localDB = {
   async getAllDiaries(): Promise<Diary[]> {
     const db = await getDB();
     const all = await db.getAll('diaries');
-    return all.filter((d) => !d.is_deleted).sort((a, b) => 
+    return all.filter((d) => !d.is_deleted).sort((a, b) => {
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  },
+
+  async searchDiaries(query: string): Promise<Diary[]> {
+    const db = await getDB();
+    const all = await db.getAll('diaries');
+    const lowerQuery = query.toLowerCase().trim();
+    return all.filter(d => {
+      if (d.is_deleted) return false;
+      return d.title.toLowerCase().includes(lowerQuery) ||
+             d.content.toLowerCase().includes(lowerQuery) ||
+             d.tags.some(t => t.toLowerCase().includes(lowerQuery));
+    }).sort((a, b) => {
+      if (a.is_pinned && !b.is_pinned) return -1;
+      if (!a.is_pinned && b.is_pinned) return 1;
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+    });
+  },
+
+  async getFavoriteDiaries(): Promise<Diary[]> {
+    const db = await getDB();
+    const all = await db.getAll('diaries');
+    return all.filter(d => !d.is_deleted && d.is_favorite).sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  },
+
+  async getPinnedDiaries(): Promise<Diary[]> {
+    const db = await getDB();
+    const all = await db.getAll('diaries');
+    return all.filter(d => !d.is_deleted && d.is_pinned).sort((a, b) => 
+      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    );
+  },
+
+  async getRecentDiaries(limit: number = 10): Promise<Diary[]> {
+    const db = await getDB();
+    const all = await db.getAll('diaries');
+    return all.filter(d => !d.is_deleted).sort((a, b) => {
+      const aTime = a.last_accessed_at ? new Date(a.last_accessed_at).getTime() : new Date(a.created_at).getTime();
+      const bTime = b.last_accessed_at ? new Date(b.last_accessed_at).getTime() : new Date(b.created_at).getTime();
+      return bTime - aTime;
+    }).slice(0, limit);
+  },
+
+  async togglePin(id: string): Promise<Diary> {
+    const db = await getDB();
+    const existing = await db.get('diaries', id);
+    if (!existing) throw new Error('日记不存在');
+    const updated: Diary = {
+      ...existing,
+      is_pinned: !existing.is_pinned,
+      updated_at: new Date().toISOString(),
+      is_synced: false,
+    };
+    await db.put('diaries', updated);
+    return updated;
+  },
+
+  async toggleFavorite(id: string): Promise<Diary> {
+    const db = await getDB();
+    const existing = await db.get('diaries', id);
+    if (!existing) throw new Error('日记不存在');
+    const updated: Diary = {
+      ...existing,
+      is_favorite: !existing.is_favorite,
+      updated_at: new Date().toISOString(),
+      is_synced: false,
+    };
+    await db.put('diaries', updated);
+    return updated;
+  },
+
+  async addTag(id: string, tag: string): Promise<Diary> {
+    const db = await getDB();
+    const existing = await db.get('diaries', id);
+    if (!existing) throw new Error('日记不存在');
+    const newTags = Array.from(new Set([...(existing.tags || []), tag.trim()]));
+    const updated: Diary = {
+      ...existing,
+      tags: newTags,
+      updated_at: new Date().toISOString(),
+      is_synced: false,
+    };
+    await db.put('diaries', updated);
+    return updated;
+  },
+
+  async removeTag(id: string, tag: string): Promise<Diary> {
+    const db = await getDB();
+    const existing = await db.get('diaries', id);
+    if (!existing) throw new Error('日记不存在');
+    const newTags = (existing.tags || []).filter(t => t !== tag);
+    const updated: Diary = {
+      ...existing,
+      tags: newTags,
+      updated_at: new Date().toISOString(),
+      is_synced: false,
+    };
+    await db.put('diaries', updated);
+    return updated;
+  },
+
+  async updateAccessTime(id: string): Promise<Diary> {
+    const db = await getDB();
+    const existing = await db.get('diaries', id);
+    if (!existing) throw new Error('日记不存在');
+    const updated: Diary = {
+      ...existing,
+      last_accessed_at: new Date().toISOString(),
+    };
+    await db.put('diaries', updated);
+    return updated;
+  },
+
+  async reorderNotebooks(ids: string[]): Promise<void> {
+    const db = await getDB();
+    const tx = db.transaction('notebooks', 'readwrite');
+    for (let i = 0; i < ids.length; i++) {
+      const nb = await tx.store.get(ids[i]);
+      if (nb) {
+        nb.order = i + 1;
+        nb.updated_at = new Date().toISOString();
+        await tx.store.put(nb);
+      }
+    }
+    await tx.done;
+  },
+
+  async exportDiaries(format: 'json' | 'markdown', diaries?: Diary[]): Promise<string> {
+    const db = await getDB();
+    const all = diaries || (await db.getAll('diaries'));
+    const filtered = all.filter(d => !d.is_deleted);
+    
+    if (format === 'json') {
+      const notebooks = await db.getAll('notebooks');
+      return JSON.stringify({ diaries: filtered, notebooks }, null, 2);
+    } else {
+      return filtered.map(d => {
+        const tags = d.tags?.length ? `\n\n#tags: ${d.tags.join(', ')}` : '';
+        return `# ${d.title}${tags}\n\n${d.content}\n\n---\n`;
+      }).join('\n');
+    }
+  },
+
+  async getTags(): Promise<string[]> {
+    const db = await getDB();
+    const all = await db.getAll('diaries');
+    const tags: Set<string> = new Set();
+    all.forEach(d => {
+      if (!d.is_deleted && d.tags) {
+        d.tags.forEach(t => tags.add(t));
+      }
+    });
+    return Array.from(tags).sort();
+  },
+
+  async getDiariesByTag(tag: string): Promise<Diary[]> {
+    const db = await getDB();
+    const all = await db.getAll('diaries');
+    return all.filter(d => !d.is_deleted && d.tags?.includes(tag)).sort((a, b) => 
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
   },
@@ -224,6 +397,166 @@ export const localDB = {
     return all.filter((d) => !d.is_deleted && d.notebook_id === notebookId).sort((a, b) => 
       new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
     );
+  },
+
+  async importDiaries(content: string, format: 'json' | 'markdown'): Promise<{
+    success: boolean;
+    diaries_imported: number;
+    notebooks_imported: number;
+    error?: string;
+  }> {
+    const db = await getDB();
+    let diariesImported = 0;
+    let notebooksImported = 0;
+
+    try {
+      if (format === 'json') {
+        const data = JSON.parse(content);
+        const diaries = data.diaries || data;
+        const notebooks = data.notebooks || [];
+
+        for (const nb of notebooks) {
+          const existing = await db.get('notebooks', nb.id);
+          if (!existing) {
+            await db.add('notebooks', {
+              id: nb.id || generateUUID(),
+              user_id: nb.user_id,
+              name: nb.name,
+              color: nb.color || '#3B82F6',
+              icon: nb.icon || '📔',
+              order: nb.order || 0,
+              is_default: nb.is_default || false,
+              created_at: nb.created_at || new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+            });
+            notebooksImported++;
+          }
+        }
+
+        for (const d of diaries) {
+          const existing = await db.get('diaries', d.id);
+          if (!existing) {
+            await db.add('diaries', {
+              id: d.id || generateUUID(),
+              user_id: d.user_id,
+              notebook_id: d.notebook_id,
+              title: d.title || '无标题',
+              content: d.content || '',
+              created_at: d.created_at || new Date().toISOString(),
+              updated_at: d.updated_at || new Date().toISOString(),
+              is_deleted: d.is_deleted || false,
+              synced_at: d.synced_at,
+              is_synced: d.is_synced || false,
+              is_pinned: d.is_pinned || false,
+              is_favorite: d.is_favorite || false,
+              tags: d.tags || [],
+              word_count: d.word_count || (d.content || '').length,
+              last_accessed_at: d.last_accessed_at || new Date().toISOString(),
+            });
+            diariesImported++;
+          }
+        }
+      } else {
+        const lines = content.split('\n');
+        let currentTitle = '';
+        let currentContent = '';
+        let inDiary = false;
+
+        for (const line of lines) {
+          if (line.startsWith('# ') && !line.startsWith('#tags:')) {
+            if (inDiary && currentTitle) {
+              const existing = await db.getAll('diaries');
+              const duplicate = existing.find(d => 
+                !d.is_deleted && d.title === currentTitle && d.content === currentContent.trim()
+              );
+              if (!duplicate) {
+                await db.add('diaries', {
+                  id: generateUUID(),
+                  title: currentTitle,
+                  content: currentContent.trim(),
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  is_deleted: false,
+                  is_synced: false,
+                  is_pinned: false,
+                  is_favorite: false,
+                  tags: [],
+                  word_count: currentContent.trim().length,
+                  last_accessed_at: new Date().toISOString(),
+                });
+                diariesImported++;
+              }
+            }
+            currentTitle = line.substring(2);
+            currentContent = '';
+            inDiary = true;
+          } else if (line === '---') {
+            if (inDiary && currentTitle) {
+              const existing = await db.getAll('diaries');
+              const duplicate = existing.find(d => 
+                !d.is_deleted && d.title === currentTitle && d.content === currentContent.trim()
+              );
+              if (!duplicate) {
+                await db.add('diaries', {
+                  id: generateUUID(),
+                  title: currentTitle,
+                  content: currentContent.trim(),
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                  is_deleted: false,
+                  is_synced: false,
+                  is_pinned: false,
+                  is_favorite: false,
+                  tags: [],
+                  word_count: currentContent.trim().length,
+                  last_accessed_at: new Date().toISOString(),
+                });
+                diariesImported++;
+              }
+            }
+            currentTitle = '';
+            currentContent = '';
+            inDiary = false;
+          } else if (inDiary) {
+            currentContent += line + '\n';
+          }
+        }
+
+        if (inDiary && currentTitle) {
+          const existing = await db.getAll('diaries');
+          const duplicate = existing.find(d => 
+            !d.is_deleted && d.title === currentTitle && d.content === currentContent.trim()
+          );
+          if (!duplicate) {
+            await db.add('diaries', {
+              id: generateUUID(),
+              title: currentTitle,
+              content: currentContent.trim(),
+              created_at: new Date().toISOString(),
+              updated_at: new Date().toISOString(),
+              is_deleted: false,
+              is_synced: false,
+              is_pinned: false,
+              is_favorite: false,
+              tags: [],
+              word_count: currentContent.trim().length,
+              last_accessed_at: new Date().toISOString(),
+            });
+            diariesImported++;
+          }
+        }
+      }
+
+      return { success: true, diaries_imported: diariesImported, notebooks_imported: notebooksImported };
+    } catch (error) {
+      console.error('导入失败:', error);
+      return { 
+        success: false, 
+        diaries_imported: diariesImported, 
+        notebooks_imported: notebooksImported,
+        error: error instanceof Error ? error.message : '导入失败'
+      };
+    }
   },
 
   async getDiariesByDate(date: string): Promise<Diary[]> {

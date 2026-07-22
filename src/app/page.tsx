@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Diary, Notebook, DiaryStats, UserProfile as UserProfileType } from '@/types';
 import localDB from '@/lib/localDatabase';
 import { supabase, getCurrentUserId } from '@/lib/supabaseClient';
@@ -10,16 +10,15 @@ import VIPModal from '@/components/VIPModal';
 import SyncButton from '@/components/SyncButton';
 import DiaryCard from '@/components/DiaryCard';
 import AuthModal from '@/components/AuthModal';
-import UserProfileModal from '@/components/UserProfile';
 import NotebookSidebar from '@/components/NotebookSidebar';
-import SettingsPanel from '@/components/SettingsPanel';
 
-type ViewMode = 'list' | 'settings';
+type FilterType = 'all' | 'favorite' | 'pinned' | 'recent';
 
 export default function HomePage() {
   const [diaries, setDiaries] = useState<Diary[]>([]);
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [stats, setStats] = useState<DiaryStats | null>(null);
+  const [tags, setTags] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
@@ -28,34 +27,38 @@ export default function HomePage() {
   const [userEmail, setUserEmail] = useState<string>('');
   const [userId, setUserId] = useState<string>('');
   const [userProfile, setUserProfile] = useState<UserProfileType | null>(null);
-  const [viewMode, setViewMode] = useState<ViewMode>('list');
+  
   const [selectedNotebookId, setSelectedNotebookId] = useState<string | null>(null);
   const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [showSidebar, setShowSidebar] = useState(true);
-  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [selectedTag, setSelectedTag] = useState<string | null>(null);
+  const [filterType, setFilterType] = useState<FilterType>('all');
+  const [searchQuery, setSearchQuery] = useState('');
 
   const [showEditor, setShowEditor] = useState(false);
   const [editingDiary, setEditingDiary] = useState<Diary | null>(null);
   const [isSaving, setIsSaving] = useState(false);
   const [showVipModal, setShowVipModal] = useState(false);
   const [showAuthModal, setShowAuthModal] = useState(false);
-  const [showProfileModal, setShowProfileModal] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
 
   useEffect(() => {
     loadLocalData();
     loadCloudData();
+    setupShortcuts();
   }, []);
 
   const loadLocalData = async () => {
     try {
-      const [localDiaries, localNotebooks, localStats] = await Promise.all([
+      const [localDiaries, localNotebooks, localStats, localTags] = await Promise.all([
         localDB.getAllDiaries(),
         localDB.getAllNotebooks(),
         localDB.getStats(),
+        localDB.getTags(),
       ]);
       setDiaries(localDiaries);
       setNotebooks(localNotebooks);
       setStats(localStats);
+      setTags(localTags);
     } catch (error) {
       console.error('加载本地数据失败:', error);
     } finally {
@@ -65,23 +68,15 @@ export default function HomePage() {
 
   const loadCloudData = async () => {
     if (!supabase) return;
-
     try {
       const uid = await getCurrentUserId();
       if (!uid) return;
-
       setIsLoggedIn(true);
       setUserId(uid);
-
       try {
         const { data: { user } } = await supabase.auth.getUser();
-        if (user?.email) {
-          setUserEmail(user.email);
-        }
-      } catch {
-        // ignore
-      }
-
+        if (user?.email) setUserEmail(user.email);
+      } catch {}
       try {
         const profile = await getUserProfile();
         if (profile) {
@@ -93,26 +88,38 @@ export default function HomePage() {
       } catch {
         setIsVip(true);
       }
-
       try {
         const syncStatus = await getSyncStatus();
         setPendingCount(syncStatus.pending_changes);
-      } catch {
-        // ignore
-      }
+      } catch {}
     } catch (error) {
       console.error('加载云端数据失败:', error);
     }
   };
 
-  const handleLogin = () => {
-    setShowAuthModal(true);
+  const setupShortcuts = () => {
+    const handler = (e: KeyboardEvent) => {
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+      if ((e.metaKey || e.ctrlKey) && e.key === 'n') {
+        e.preventDefault();
+        handleCreateDiary();
+      }
+      if ((e.metaKey || e.ctrlKey) && e.key === 'f') {
+        e.preventDefault();
+        setShowSearch(true);
+      }
+      if (e.key === 'Escape') {
+        setShowEditor(false);
+        setShowSearch(false);
+        setSelectedTag(null);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
   };
 
-  const handleRegister = () => {
-    setShowAuthModal(true);
-  };
-
+  const handleLogin = () => setShowAuthModal(true);
+  const handleRegister = () => setShowAuthModal(true);
   const handleAuthSuccess = () => {
     loadLocalData();
     loadCloudData();
@@ -120,9 +127,7 @@ export default function HomePage() {
 
   const handleLogout = async () => {
     if (!confirm('确定要退出登录吗？')) return;
-    if (supabase) {
-      await supabase.auth.signOut();
-    }
+    if (supabase) await supabase.auth.signOut();
     setIsLoggedIn(false);
     setIsVip(false);
     setUserEmail('');
@@ -130,67 +135,39 @@ export default function HomePage() {
     setUserProfile(null);
   };
 
-  const handleUpdateProfile = async (updates: Partial<UserProfileType>) => {
-    if (!userProfile) return;
-    try {
-      if (supabase) {
-        const { error } = await supabase.from('profiles').update(updates).eq('id', userProfile.id);
-        if (!error) {
-          setUserProfile(prev => prev ? { ...prev, ...updates } : null);
-          alert('资料更新成功！');
-          return;
-        }
-      }
-      // 如果supabase不可用，至少更新本地显示
-      setUserProfile(prev => prev ? { ...prev, ...updates } : null);
-      alert('资料更新成功！');
-    } catch (error) {
-      console.error('更新资料失败:', error);
-      // 出错也更新本地状态，不让用户觉得没用
-      setUserProfile(prev => prev ? { ...prev, ...updates } : null);
-      alert('资料更新成功！');
-    }
-  };
-
   const handleCreateDiary = () => {
     setEditingDiary(null);
     setShowEditor(true);
   };
 
-  const handleEditDiary = (diary: Diary) => {
+  const handleEditDiary = async (diary: Diary) => {
+    await localDB.updateAccessTime(diary.id);
     setEditingDiary(diary);
     setShowEditor(true);
   };
 
-  const handleSaveDiary = async (data: { title: string; content: string }) => {
+  const handleSaveDiary = async (data: { title: string; content: string; tags?: string[] }) => {
     setIsSaving(true);
     try {
       const defaultNb = await localDB.getDefaultNotebook();
       const notebookId = editingDiary?.notebook_id || selectedNotebookId || defaultNb?.id;
-
       if (editingDiary) {
         await localDB.updateDiary(editingDiary.id, { ...data, notebook_id: notebookId });
       } else {
-        await localDB.createDiary(data.title, data.content, userId || undefined, notebookId);
+        await localDB.createDiary(data.title, data.content, userId || undefined, notebookId, data.tags || []);
       }
-
-      const [updatedDiaries, updatedStats] = await Promise.all([
+      const [updatedDiaries, updatedStats, updatedTags] = await Promise.all([
         localDB.getAllDiaries(),
         localDB.getStats(),
+        localDB.getTags(),
       ]);
       setDiaries(updatedDiaries);
       setStats(updatedStats);
-
+      setTags(updatedTags);
       const count = await localDB.countUnsynced();
       setPendingCount(count);
-
       setShowEditor(false);
       setEditingDiary(null);
-      
-      // 确保切回列表视图，让用户看到刚写的日记
-      setViewMode('list');
-      setSelectedNotebookId(null);
-      setSelectedDate(null);
     } catch (error) {
       console.error('保存失败:', error);
       alert(`保存失败: ${error instanceof Error ? error.message : '未知错误'}`);
@@ -203,18 +180,30 @@ export default function HomePage() {
     if (!confirm('确定要删除这篇日记吗？')) return;
     try {
       await localDB.deleteDiary(id);
-      const [updatedDiaries, updatedStats] = await Promise.all([
+      const [updatedDiaries, updatedStats, updatedTags] = await Promise.all([
         localDB.getAllDiaries(),
         localDB.getStats(),
+        localDB.getTags(),
       ]);
       setDiaries(updatedDiaries);
       setStats(updatedStats);
+      setTags(updatedTags);
       const count = await localDB.countUnsynced();
       setPendingCount(count);
     } catch (error) {
       console.error('删除失败:', error);
       alert('删除失败，请重试');
     }
+  };
+
+  const handleTogglePin = async (id: string) => {
+    const updated = await localDB.togglePin(id);
+    setDiaries(prev => prev.map(d => d.id === id ? updated : d));
+  };
+
+  const handleToggleFavorite = async (id: string) => {
+    const updated = await localDB.toggleFavorite(id);
+    setDiaries(prev => prev.map(d => d.id === id ? updated : d));
   };
 
   const handleSync = async () => {
@@ -262,274 +251,304 @@ export default function HomePage() {
     }
   };
 
-  const handleSelectNotebook = (id: string | null) => {
-    setSelectedNotebookId(id);
-    setSelectedDate(null);
-    setMobileMenuOpen(false);
+  const handleReorderNotebooks = async (ids: string[]) => {
+    await localDB.reorderNotebooks(ids);
+    const updated = await localDB.getAllNotebooks();
+    setNotebooks(updated);
+  };
+
+  const handleEditNotebook = async (id: string, updates: { name?: string; color?: string; icon?: string }) => {
+    await localDB.updateNotebook(id, updates);
+    const updated = await localDB.getAllNotebooks();
+    setNotebooks(updated);
   };
 
   const handleSelectDate = (date: string) => {
     setSelectedDate(date === selectedDate ? null : date);
     setSelectedNotebookId(null);
+    setSelectedTag(null);
+    setFilterType('all');
   };
 
-  const filteredDiaries = diaries.filter(diary => {
-    if (selectedNotebookId && diary.notebook_id !== selectedNotebookId) return false;
-    if (selectedDate) {
-      const diaryDate = new Date(diary.created_at).toISOString().split('T')[0];
-      return diaryDate === selectedDate;
+  const handleSearch = async (query: string) => {
+    setSearchQuery(query);
+    if (!query.trim()) {
+      loadLocalData();
+      return;
     }
-    return true;
-  });
+    const results = await localDB.searchDiaries(query);
+    setDiaries(results);
+  };
 
-  const selectedNotebook = notebooks.find(n => n.id === selectedNotebookId);
+  const getFilteredDiaries = useCallback(() => {
+    let result = [...diaries];
+    
+    if (selectedNotebookId) {
+      result = result.filter(d => d.notebook_id === selectedNotebookId);
+    }
+    
+    if (selectedDate) {
+      result = result.filter(d => {
+        const diaryDate = new Date(d.created_at).toISOString().split('T')[0];
+        return diaryDate === selectedDate;
+      });
+    }
+    
+    if (selectedTag) {
+      result = result.filter(d => d.tags?.includes(selectedTag));
+    }
+    
+    if (filterType === 'favorite') {
+      result = result.filter(d => d.is_favorite);
+    } else if (filterType === 'pinned') {
+      result = result.filter(d => d.is_pinned);
+    } else if (filterType === 'recent') {
+      result = [...result].sort((a, b) => {
+        const aTime = a.last_accessed_at ? new Date(a.last_accessed_at).getTime() : new Date(a.created_at).getTime();
+        const bTime = b.last_accessed_at ? new Date(b.last_accessed_at).getTime() : new Date(b.created_at).getTime();
+        return bTime - aTime;
+      });
+    }
+    
+    return result;
+  }, [diaries, selectedNotebookId, selectedDate, selectedTag, filterType]);
+
+  const filteredDiaries = getFilteredDiaries();
+
+  const getTitle = () => {
+    if (selectedNotebookId) {
+      const nb = notebooks.find(n => n.id === selectedNotebookId);
+      return nb?.name || '日记本';
+    }
+    if (selectedDate) {
+      return `${selectedDate} 的日记`;
+    }
+    if (selectedTag) {
+      return `标签: ${selectedTag}`;
+    }
+    if (filterType === 'favorite') return '收藏的日记';
+    if (filterType === 'pinned') return '置顶的日记';
+    if (filterType === 'recent') return '最近访问';
+    return '全部日记';
+  };
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-50 via-purple-50 to-pink-50 flex items-center justify-center">
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="relative">
-            <div className="w-20 h-20 border-4 border-primary-200 rounded-full animate-spin" />
-            <div className="absolute inset-0 w-20 h-20 border-4 border-primary-500 rounded-full animate-spin border-t-transparent" />
-          </div>
-          <p className="text-gray-500 mt-4 text-lg">加载中...</p>
+          <div className="w-12 h-12 border-4 border-gray-200 rounded-full animate-spin border-t-blue-600" />
+          <p className="text-gray-500 mt-4">加载中...</p>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="flex">
-        {showSidebar && (
-          <div className="hidden lg:block w-64 flex-shrink-0">
-            <NotebookSidebar
-              notebooks={notebooks}
-              selectedNotebookId={selectedNotebookId}
-              onSelect={handleSelectNotebook}
-              onCreate={handleCreateNotebook}
-              onDelete={handleDeleteNotebook}
-            />
-          </div>
-        )}
+    <div className="min-h-screen bg-gray-50 flex">
+      <NotebookSidebar
+        notebooks={notebooks}
+        selectedNotebookId={selectedNotebookId}
+        onSelectNotebook={setSelectedNotebookId}
+        onCreateNotebook={handleCreateNotebook}
+        onDeleteNotebook={handleDeleteNotebook}
+        onEditNotebook={handleEditNotebook}
+        onReorder={handleReorderNotebooks}
+        isLoggedIn={isLoggedIn}
+        onLogin={handleLogin}
+        onLogout={handleLogout}
+      />
 
-        <div className="flex-1 min-w-0">
-          <header className="bg-white border-b border-gray-200 sticky top-0 z-40">
-            <div className="max-w-5xl mx-auto px-4 sm:px-6 py-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <button
-                    onClick={() => setShowSidebar(!showSidebar)}
-                    className="lg:hidden p-2 hover:bg-gray-100 rounded-lg transition-colors"
-                  >
-                    <span className="text-xl">☰</span>
-                  </button>
-                  <div className="flex items-center gap-2">
-                    <div className="text-2xl">📔</div>
-                    <h1 className="text-xl font-semibold text-gray-800">我的日记</h1>
-                  </div>
-                </div>
+      <div className="flex-1 ml-60">
+        <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
+          <div className="px-6 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <h1 className="text-lg font-semibold text-gray-900">{getTitle()}</h1>
+              
+              {/* 搜索按钮 */}
+              <button
+                onClick={() => setShowSearch(true)}
+                className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors text-sm"
+              >
+                <span>🔍</span>
+                <span>搜索...</span>
+              </button>
+            </div>
 
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center bg-gray-100 rounded-lg p-0.5">
-                    <button
-                      onClick={() => setViewMode('list')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                        viewMode === 'list' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                    >
-                      📝 日记
-                    </button>
-                    <button
-                      onClick={() => setViewMode('settings')}
-                      className={`px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
-                        viewMode === 'settings' ? 'bg-white text-gray-900 shadow-sm' : 'text-gray-600 hover:text-gray-900'
-                      }`}
-                    >
-                      ⚙️ 更多
-                    </button>
-                  </div>
-
-                  <SyncButton
-                    isVip={isVip}
-                    isLoggedIn={isLoggedIn}
-                    isSyncing={isSyncing}
-                    pendingCount={pendingCount}
-                    onSync={handleSync}
-                    onShowVipModal={() => setShowVipModal(true)}
-                    onLogin={handleLogin}
-                  />
-
-                  {isLoggedIn ? (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => setShowProfileModal(true)}
-                        className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center text-gray-700 text-sm font-medium hover:bg-gray-300 transition-colors"
-                      >
-                        {userProfile?.avatar || userEmail.charAt(0).toUpperCase()}
-                      </button>
-                      <div className="hidden sm:block">
-                        <div className="text-sm font-medium text-gray-800">
-                          {userProfile?.nickname || userEmail}
-                          {isVip && <span className="ml-1 text-amber-500">⭐</span>}
-                        </div>
-                        <button onClick={handleLogout} className="text-xs text-gray-500 hover:text-gray-700">
-                          退出
-                        </button>
-                      </div>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={handleLogin}
-                        className="text-sm text-blue-600 hover:text-blue-700 font-medium"
-                      >
-                        登录
-                      </button>
-                      <button
-                        onClick={handleRegister}
-                        className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 transition-colors"
-                      >
-                        注册
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-
-              {selectedNotebook && (
-                <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
-                  <span>{selectedNotebook.icon}</span>
-                  <span>{selectedNotebook.name}</span>
-                  <button onClick={() => setSelectedNotebookId(null)} className="text-blue-600 hover:text-blue-700 text-xs">
-                    清除筛选
-                  </button>
-                </div>
+            <div className="flex items-center gap-3">
+              <SyncButton
+                isVip={isVip}
+                isLoggedIn={isLoggedIn}
+                isSyncing={isSyncing}
+                pendingCount={pendingCount}
+                onSync={handleSync}
+                onShowVipModal={() => setShowVipModal(true)}
+                onLogin={handleLogin}
+              />
+              {isLoggedIn ? (
+                <button
+                  onClick={handleLogout}
+                  className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center text-sm font-medium text-gray-700 hover:bg-gray-200 transition-colors"
+                  title={`${userProfile?.nickname || userEmail} (点击退出)`}
+                >
+                  {userProfile?.avatar || userEmail.charAt(0).toUpperCase()}
+                </button>
+              ) : (
+                <button
+                  onClick={handleLogin}
+                  className="text-sm bg-blue-600 text-white px-3 py-1.5 rounded-md hover:bg-blue-700 transition-colors"
+                >
+                  登录
+                </button>
               )}
+            </div>
+          </div>
+        </header>
 
-              {selectedDate && (
-                <div className="mt-2 flex items-center gap-2 text-sm text-gray-500">
-                  <span>📅</span>
-                  <span>{selectedDate}</span>
-                  <button onClick={() => setSelectedDate(null)} className="text-blue-600 hover:text-blue-700 text-xs">
-                    清除筛选
+        <main className="p-6">
+          {/* 工具栏 */}
+          <div className="flex flex-wrap items-center gap-3 mb-4">
+            <button
+              onClick={handleCreateDiary}
+              className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors text-sm font-medium"
+            >
+              <span>+</span>
+              <span>写日记</span>
+            </button>
+
+            {/* 筛选器 */}
+            <div className="flex items-center gap-2">
+              {[
+                { key: 'all', label: '全部' },
+                { key: 'favorite', label: '⭐' },
+                { key: 'pinned', label: '📌' },
+                { key: 'recent', label: '🕐' },
+              ].map((f) => (
+                <button
+                  key={f.key}
+                  onClick={() => { setFilterType(f.key as FilterType); setSelectedTag(null); }}
+                  className={`px-3 py-1.5 rounded-md text-sm transition-colors ${
+                    filterType === f.key
+                      ? 'bg-blue-100 text-blue-700 font-medium'
+                      : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  }`}
+                  title={f.key === 'favorite' ? '收藏' : f.key === 'pinned' ? '置顶' : f.key === 'recent' ? '最近访问' : '全部'}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+
+            {/* 标签筛选 */}
+            {tags.length > 0 && (
+              <div className="flex items-center gap-2 flex-wrap">
+                {tags.slice(0, 5).map(tag => (
+                  <button
+                    key={tag}
+                    onClick={() => setSelectedTag(tag === selectedTag ? null : tag)}
+                    className={`px-3 py-1 rounded-full text-sm transition-colors ${
+                      selectedTag === tag
+                        ? 'bg-blue-600 text-white'
+                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                    }`}
+                  >
+                    #{tag}
                   </button>
+                ))}
+                {tags.length > 5 && (
+                  <span className="text-sm text-gray-400">+{tags.length - 5}</span>
+                )}
+              </div>
+            )}
+          </div>
+
+          {/* 筛选状态 */}
+          <div className="flex flex-wrap items-center gap-2 mb-4 text-sm">
+            {selectedNotebookId && (
+              <span className="px-2 py-1 bg-gray-100 rounded">
+                当前：{notebooks.find(n => n.id === selectedNotebookId)?.name}
+                <button onClick={() => setSelectedNotebookId(null)} className="ml-2 text-blue-600">清除</button>
+              </span>
+            )}
+            {selectedDate && (
+              <span className="px-2 py-1 bg-gray-100 rounded">
+                日期：{selectedDate}
+                <button onClick={() => setSelectedDate(null)} className="ml-2 text-blue-600">清除</button>
+              </span>
+            )}
+            {selectedTag && (
+              <span className="px-2 py-1 bg-gray-100 rounded">
+                标签：#{selectedTag}
+                <button onClick={() => setSelectedTag(null)} className="ml-2 text-blue-600">清除</button>
+              </span>
+            )}
+          </div>
+
+          {/* 日记列表 */}
+          {filteredDiaries.length === 0 ? (
+            <div className="text-center py-12">
+              <div className="text-5xl mb-4">📝</div>
+              <p className="text-gray-500 mb-2">没有找到日记</p>
+              <p className="text-sm text-gray-400">点击上方按钮，写下第一篇日记</p>
+            </div>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {filteredDiaries.map((diary) => {
+                const nb = notebooks.find(n => n.id === diary.notebook_id);
+                return (
+                  <DiaryCard
+                    key={diary.id}
+                    diary={diary}
+                    notebook={nb}
+                    onEdit={handleEditDiary}
+                    onDelete={handleDeleteDiary}
+                    onTogglePin={handleTogglePin}
+                    onToggleFavorite={handleToggleFavorite}
+                  />
+                );
+              })}
+            </div>
+          )}
+        </main>
+      </div>
+
+      {/* 搜索弹窗 */}
+      {showSearch && (
+        <div className="fixed inset-0 z-[100] flex items-start justify-center pt-24">
+          <div className="absolute inset-0 bg-black/50" onClick={() => setShowSearch(false)} />
+          <div className="relative w-full max-w-xl mx-4">
+            <div className="bg-white rounded-lg shadow-xl p-4">
+              <input
+                type="text"
+                value={searchQuery}
+                onChange={(e) => handleSearch(e.target.value)}
+                placeholder="搜索日记标题、内容或标签..."
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none"
+                autoFocus
+              />
+              {searchQuery && (
+                <div className="mt-2 text-sm text-gray-500">
+                  找到 {diaries.length} 条结果
                 </div>
               )}
             </div>
-          </header>
-
-          <main className="max-w-5xl mx-auto px-4 sm:px-6 py-6">
-            {viewMode === 'list' && (
-              <>
-                {filteredDiaries.length === 0 ? (
-                  <div className="text-center py-16">
-                    <div className="text-6xl mb-4">📝</div>
-                    <h2 className="text-lg font-semibold text-gray-700 mb-2">还没有日记</h2>
-                    <p className="text-gray-500 mb-6">点击下方按钮，写下你的第一篇日记</p>
-                    <button
-                      onClick={handleCreateDiary}
-                      className="px-6 py-2.5 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors font-medium"
-                    >
-                      写日记
-                    </button>
-                  </div>
-                ) : (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                    {filteredDiaries.map((diary) => {
-                      const nb = notebooks.find(n => n.id === diary.notebook_id);
-                      return (
-                        <DiaryCard
-                          key={diary.id}
-                          diary={diary}
-                          notebook={nb}
-                          onEdit={handleEditDiary}
-                          onDelete={handleDeleteDiary}
-                        />
-                      );
-                    })}
-                  </div>
-                )}
-              </>
-            )}
-
-            {viewMode === 'settings' && (
-              <SettingsPanel
-                diaries={diaries}
-                stats={stats}
-                userProfile={userProfile}
-                isLoggedIn={isLoggedIn}
-                onUpdateProfile={handleUpdateProfile}
-                onLogout={handleLogout}
-                onLogin={handleLogin}
-                onSelectDate={handleSelectDate}
-                selectedDate={selectedDate}
-                onEditDiary={handleEditDiary}
-                filteredDiaries={filteredDiaries}
-              />
-            )}
-          </main>
-
-          <button
-            onClick={handleCreateDiary}
-            className="fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg hover:shadow-xl transition-all flex items-center justify-center text-xl z-50 hover:bg-blue-700"
-            aria-label="新建日记"
-          >
-            +
-          </button>
-        </div>
-      </div>
-
-      {mobileMenuOpen && (
-        <div className="fixed inset-0 z-50 lg:hidden">
-          <div className="absolute inset-0 bg-black/50" onClick={() => setMobileMenuOpen(false)} />
-          <div className="relative w-64 bg-white h-full">
-            <NotebookSidebar
-              notebooks={notebooks}
-              selectedNotebookId={selectedNotebookId}
-              onSelect={handleSelectNotebook}
-              onCreate={handleCreateNotebook}
-              onDelete={handleDeleteNotebook}
-            />
           </div>
         </div>
       )}
 
+      {/* 弹窗 */}
       {showEditor && (
         <DiaryEditor
           diary={editingDiary || undefined}
           mode={editingDiary ? 'edit' : 'create'}
           onSave={handleSaveDiary}
-          onCancel={() => {
-            setShowEditor(false);
-            setEditingDiary(null);
-          }}
+          onCancel={() => { setShowEditor(false); setEditingDiary(null); }}
           isSaving={isSaving}
+          availableTags={tags}
         />
       )}
 
-      <VIPModal
-        isOpen={showVipModal}
-        onClose={() => setShowVipModal(false)}
-        userId={userId}
-        onSuccess={() => {
-          setShowVipModal(false);
-          loadLocalData();
-          loadCloudData();
-        }}
-      />
-
-      <AuthModal
-        isOpen={showAuthModal}
-        onClose={() => setShowAuthModal(false)}
-        onSuccess={handleAuthSuccess}
-      />
-
-      <UserProfileModal
-        profile={userProfile}
-        onUpdate={handleUpdateProfile}
-        onClose={() => setShowProfileModal(false)}
-      />
+      <VIPModal isOpen={showVipModal} onClose={() => setShowVipModal(false)} userId={userId} onSuccess={() => { setShowVipModal(false); loadLocalData(); loadCloudData(); }} />
+      <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={handleAuthSuccess} />
     </div>
   );
 }

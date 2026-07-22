@@ -10,6 +10,7 @@ interface DiaryEditorProps {
   onSave: (data: DiaryFormData) => Promise<void>;
   onCancel: () => void;
   isSaving?: boolean;
+  availableTags?: string[];
 }
 
 export default function DiaryEditor({
@@ -18,9 +19,12 @@ export default function DiaryEditor({
   onSave,
   onCancel,
   isSaving = false,
+  availableTags = [],
 }: DiaryEditorProps) {
   const [title, setTitle] = useState(diary?.title || '');
   const [content, setContent] = useState(diary?.content || '');
+  const [tags, setTags] = useState<string[]>(diary?.tags || []);
+  const [newTag, setNewTag] = useState('');
   const [titleError, setTitleError] = useState<string>('');
   const [contentError, setContentError] = useState<string>('');
   const [charCount, setCharCount] = useState(0);
@@ -79,7 +83,7 @@ export default function DiaryEditor({
       return;
     }
 
-    await onSave({ title: title.trim(), content });
+    await onSave({ title: title.trim(), content, tags });
   };
 
   // 快捷键支持
@@ -145,6 +149,58 @@ export default function DiaryEditor({
               <p className="mt-1 text-xs text-gray-400">
                 {title.length} / {DATA_CONSTRAINTS.MAX_TITLE_LENGTH}
               </p>
+            </div>
+
+            {/* 标签选择 */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                标签
+              </label>
+              <div className="flex flex-wrap gap-2 mb-2">
+                {tags.map((tag, index) => (
+                  <span
+                    key={index}
+                    className="inline-flex items-center gap-1 px-3 py-1 bg-blue-50 text-blue-600 rounded-full text-sm"
+                  >
+                    {tag}
+                    <button
+                      onClick={() => setTags(tags.filter((_, i) => i !== index))}
+                      className="hover:text-blue-800"
+                    >
+                      ×
+                    </button>
+                  </span>
+                ))}
+                <div className="flex items-center">
+                  <input
+                    type="text"
+                    value={newTag}
+                    onChange={(e) => setNewTag(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && newTag.trim() && !tags.includes(newTag.trim())) {
+                        e.preventDefault();
+                        setTags([...tags, newTag.trim()]);
+                        setNewTag('');
+                      }
+                    }}
+                    placeholder="输入标签..."
+                    className="px-3 py-1 border border-gray-200 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 w-32"
+                  />
+                </div>
+              </div>
+              {availableTags.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {availableTags.filter(t => !tags.includes(t)).map((tag) => (
+                    <button
+                      key={tag}
+                      onClick={() => setTags([...tags, tag])}
+                      className="px-3 py-1 text-xs text-gray-500 bg-gray-100 rounded-full hover:bg-gray-200 transition-colors"
+                    >
+                      + {tag}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* 内容输入 */}

@@ -1,15 +1,20 @@
 // 日记数据结构
 export interface Diary {
-  id: string; // UUID
-  user_id?: string; // Supabase 用户ID（可选，本地模式可能没有）
-  notebook_id?: string; // 所属日记本ID
+  id: string;
+  user_id?: string;
+  notebook_id?: string;
   title: string;
-  content: string; // Markdown内容
-  created_at: string; // ISO timestamp
-  updated_at: string; // ISO timestamp
-  is_deleted: boolean; // 软删除标记
-  synced_at?: string; // 最后同步时间
-  is_synced: boolean; // 是否已同步到云端
+  content: string;
+  created_at: string;
+  updated_at: string;
+  is_deleted: boolean;
+  synced_at?: string;
+  is_synced: boolean;
+  is_pinned: boolean;
+  is_favorite: boolean;
+  tags: string[];
+  word_count: number;
+  last_accessed_at?: string;
 }
 
 // 日记统计
@@ -90,6 +95,7 @@ export type EditorMode = 'create' | 'edit';
 export interface DiaryFormData {
   title: string;
   content: string;
+  tags?: string[];
 }
 
 // API响应类型
