@@ -112,7 +112,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     
     try {
       if (!supabase) {
-        setErrors(prev => ({ ...prev, general: '网络连接失败，请检查网络后重试' }));
+        setErrors(prev => ({ ...prev, general: '服务暂不可用，请稍后再试' }));
         return;
       }
 
@@ -122,7 +122,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
       });
 
       if (error) {
-        let msg = '登录失败，请检查邮箱和密码';
+        let msg = '登录失败，请稍后重试';
         if (error.message.includes('Invalid login credentials')) {
           msg = '邮箱或密码错误';
         } else if (error.message.includes('Email not confirmed')) {
@@ -131,6 +131,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           msg = '操作太频繁，请稍后再试';
         } else if (error.message.includes('network') || error.message.includes('fetch')) {
           msg = '网络连接失败，请检查网络后重试';
+        } else if (error.message) {
+          msg = error.message;
         }
         setErrors(prev => ({ ...prev, general: msg }));
         return;
@@ -155,7 +157,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
     
     try {
       if (!supabase) {
-        setErrors(prev => ({ ...prev, general: '网络连接失败，请检查网络后重试' }));
+        setErrors(prev => ({ ...prev, general: '服务暂不可用，请稍后再试' }));
         return;
       }
 
@@ -178,6 +180,8 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           msg = '操作太频繁，请稍后再试';
         } else if (error.message.includes('network') || error.message.includes('fetch')) {
           msg = '网络连接失败，请检查网络后重试';
+        } else if (error.message) {
+          msg = error.message;
         }
         setErrors(prev => ({ ...prev, general: msg }));
         return;
@@ -215,12 +219,12 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
         onClick={onClose}
       />
       
-      <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 overflow-hidden transform transition-all">
-        <div className="bg-gradient-to-r from-primary-500 to-primary-600 px-6 py-8">
-          <h2 className="text-2xl font-bold text-white text-center">
+      <div className="relative bg-white border border-gray-200 rounded-lg shadow-xl w-full max-w-md mx-4 overflow-hidden">
+        <div className="px-6 py-6 border-b border-gray-100">
+          <h2 className="text-xl font-semibold text-gray-900 text-center">
             {mode === 'login' ? '欢迎回来' : '创建账号'}
           </h2>
-          <p className="text-white/80 text-center mt-2 text-sm">
+          <p className="text-gray-500 text-center mt-1 text-sm">
             {mode === 'login' ? '请登录您的账号' : '开启您的日记之旅'}
           </p>
         </div>
@@ -242,10 +246,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                 value={email}
                 onChange={(e) => handleEmailChange(e.target.value)}
                 placeholder="请输入邮箱"
-                className={`w-full pl-10 pr-4 py-3 border rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                className={`w-full pl-10 pr-4 py-2.5 border rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.email 
                     ? 'border-red-300 bg-red-50 text-red-700 placeholder-red-300' 
-                    : 'border-gray-200 hover:border-gray-300 bg-white text-gray-900'
+                    : 'border-gray-300 hover:border-gray-400 bg-white text-gray-900'
                 }`}
                 autoComplete="username"
               />
@@ -264,10 +268,10 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                 value={password}
                 onChange={(e) => handlePasswordChange(e.target.value)}
                 placeholder={`至少${PASSWORD_MIN_LENGTH}位字符`}
-                className={`w-full pl-10 pr-4 py-3 border rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-primary-500 ${
+                className={`w-full pl-10 pr-4 py-2.5 border rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
                   errors.password 
                     ? 'border-red-300 bg-red-50 text-red-700 placeholder-red-300' 
-                    : 'border-gray-200 hover:border-gray-300 bg-white text-gray-900'
+                    : 'border-gray-300 hover:border-gray-400 bg-white text-gray-900'
                 }`}
                 autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
               />
@@ -312,11 +316,11 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                   value={confirmPassword}
                   onChange={(e) => handleConfirmPasswordChange(e.target.value)}
                   placeholder="请再次输入密码"
-                  className={`w-full pl-10 pr-4 py-3 border rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-primary-500 ${
-                    errors.confirmPassword 
-                      ? 'border-red-300 bg-red-50 text-red-700 placeholder-red-300' 
-                      : 'border-gray-200 hover:border-gray-300 bg-white text-gray-900'
-                  }`}
+                  className={`w-full pl-10 pr-4 py-2.5 border rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${
+                  errors.confirmPassword 
+                    ? 'border-red-300 bg-red-50 text-red-700 placeholder-red-300' 
+                    : 'border-gray-300 hover:border-gray-400 bg-white text-gray-900'
+                }`}
                   autoComplete="new-password"
                 />
               </div>
@@ -329,7 +333,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
           <button
             type="submit"
             disabled={isLoading}
-            className="w-full py-3 bg-primary-500 hover:bg-primary-600 disabled:bg-primary-300 text-white font-medium rounded-lg transition-all shadow-md hover:shadow-lg disabled:shadow-none flex items-center justify-center gap-2"
+            className="w-full py-2.5 bg-blue-600 hover:bg-blue-700 disabled:bg-blue-300 text-white font-medium rounded-md transition-colors flex items-center justify-center gap-2"
           >
             {isLoading ? (
               <>
@@ -354,7 +358,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     setPassword('');
                     setConfirmPassword('');
                   }}
-                  className="text-primary-500 hover:text-primary-600 font-medium"
+                  className="text-blue-600 hover:text-blue-700 font-medium"
                 >
                   立即注册
                 </button>
@@ -371,7 +375,7 @@ export default function AuthModal({ isOpen, onClose, onSuccess }: AuthModalProps
                     setPassword('');
                     setConfirmPassword('');
                   }}
-                  className="text-primary-500 hover:text-primary-600 font-medium"
+                  className="text-blue-600 hover:text-blue-700 font-medium"
                 >
                   立即登录
                 </button>

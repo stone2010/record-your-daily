@@ -249,6 +249,19 @@ export default function HomePage() {
     setNotebooks(prev => [...prev, nb]);
   };
 
+  const handleDeleteNotebook = async (id: string) => {
+    try {
+      await localDB.deleteNotebook(id);
+      setNotebooks(prev => prev.filter(n => n.id !== id));
+      if (selectedNotebookId === id) {
+        setSelectedNotebookId(null);
+      }
+    } catch (error) {
+      console.error('删除日记本失败:', error);
+      alert('删除失败，请重试');
+    }
+  };
+
   const handleSelectNotebook = (id: string | null) => {
     setSelectedNotebookId(id);
     setSelectedDate(null);
@@ -295,6 +308,7 @@ export default function HomePage() {
               selectedNotebookId={selectedNotebookId}
               onSelect={handleSelectNotebook}
               onCreate={handleCreateNotebook}
+              onDelete={handleDeleteNotebook}
             />
           </div>
         )}
@@ -475,6 +489,7 @@ export default function HomePage() {
               selectedNotebookId={selectedNotebookId}
               onSelect={handleSelectNotebook}
               onCreate={handleCreateNotebook}
+              onDelete={handleDeleteNotebook}
             />
           </div>
         </div>
