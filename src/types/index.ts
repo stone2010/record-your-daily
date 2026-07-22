@@ -29,6 +29,9 @@ export interface DiaryStats {
   current_streak: number; // 当前连续天数
   top_notebooks: { notebook_id: string; name: string; count: number }[]; // 日记本统计
   monthly_data: { month: string; count: number }[]; // 月度统计
+  weekday_distribution: { day: string; count: number }[]; // 星期分布
+  hourly_distribution: { hour: string; count: number }[]; // 时段分布
+  tag_stats: { tag: string; count: number }[]; // 标签统计
 }
 
 // 用户档案（对应Supabase profiles表）

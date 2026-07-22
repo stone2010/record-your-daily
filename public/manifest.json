@@ -2,89 +2,73 @@
   "name": "我的日记",
   "short_name": "日记",
   "description": "一款离线优先的轻量级日记/随手记应用",
-  "start_url": "/",
+  "start_url": "/record-your-daily/",
   "display": "standalone",
   "background_color": "#f9fafb",
   "theme_color": "#ef7a1e",
   "orientation": "portrait-primary",
-  "scope": "/",
+  "scope": "/record-your-daily/",
   "lang": "zh-CN",
   "icons": [
     {
-      "src": "/icons/icon-72x72.png",
+      "src": "/record-your-daily/icons/icon-72x72.png",
       "sizes": "72x72",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-96x96.png",
+      "src": "/record-your-daily/icons/icon-96x96.png",
       "sizes": "96x96",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-128x128.png",
+      "src": "/record-your-daily/icons/icon-128x128.png",
       "sizes": "128x128",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-144x144.png",
+      "src": "/record-your-daily/icons/icon-144x144.png",
       "sizes": "144x144",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-152x152.png",
+      "src": "/record-your-daily/icons/icon-152x152.png",
       "sizes": "152x152",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-192x192.png",
+      "src": "/record-your-daily/icons/icon-192x192.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-384x384.png",
+      "src": "/record-your-daily/icons/icon-384x384.png",
       "sizes": "384x384",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "/icons/icon-512x512.png",
+      "src": "/record-your-daily/icons/icon-512x512.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
     }
   ],
   "categories": ["lifestyle", "productivity"],
-  "screenshots": [
-    {
-      "src": "/screenshots/screenshot1.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "日记列表"
-    },
-    {
-      "src": "/screenshots/screenshot2.png",
-      "sizes": "1080x1920",
-      "type": "image/png",
-      "form_factor": "narrow",
-      "label": "编辑日记"
-    }
-  ],
   "shortcuts": [
     {
       "name": "新建日记",
       "short_name": "新建",
       "description": "快速创建一篇新日记",
-      "url": "/?action=new",
+      "url": "/record-your-daily/?action=new",
       "icons": [
         {
-          "src": "/icons/icon-add.png",
+          "src": "/record-your-daily/icons/icon-add.png",
           "sizes": "96x96"
         }
       ]

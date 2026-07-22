@@ -10,8 +10,9 @@ import CalendarView from '@/components/CalendarView';
 import HeatmapView from '@/components/HeatmapView';
 import StatsPanel from '@/components/StatsPanel';
 import AuthModal from '@/components/AuthModal';
+import { getPreferences, setPreferences, UserPreferences } from '@/lib/userPreferences';
 
-type SettingsTab = 'stats' | 'calendar' | 'heatmap' | 'account' | 'import' | 'export' | 'shortcuts';
+type SettingsTab = 'stats' | 'calendar' | 'heatmap' | 'account' | 'import' | 'export' | 'shortcuts' | 'preferences';
 
 export default function SettingsPage() {
   const router = useRouter();
@@ -42,10 +43,17 @@ export default function SettingsPage() {
   const [importConfirm, setImportConfirm] = useState(false);
   const [isImporting, setIsImporting] = useState(false);
   const [importMessage, setImportMessage] = useState('');
+  const [preferences, setLocalPreferences] = useState<UserPreferences>(getPreferences());
 
   useEffect(() => {
     loadData();
   }, []);
+
+  const handlePreferenceChange = (key: keyof UserPreferences, value: any) => {
+    const updated = { ...preferences, [key]: value };
+    setLocalPreferences(updated);
+    setPreferences({ [key]: value });
+  };
 
   const loadData = async () => {
     try {
@@ -250,6 +258,7 @@ export default function SettingsPage() {
               { key: 'calendar', icon: '📅', label: '日历' },
               { key: 'heatmap', icon: '🔥', label: '热力图' },
               { key: 'account', icon: '👤', label: '账号' },
+              { key: 'preferences', icon: '⚙️', label: '偏好' },
               { key: 'export', icon: '📤', label: '导出' },
               { key: 'import', icon: '📥', label: '导入' },
               { key: 'shortcuts', icon: '⌨️', label: '快捷键' },
@@ -376,6 +385,133 @@ export default function SettingsPage() {
             </div>
           )}
           
+          {settingsTab === 'preferences' && (
+            <div className="space-y-4 sm:space-y-6">
+              {/* 随手记模式 */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">📝 写作偏好</h2>
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-gray-900">随手记模式</div>
+                      <div className="text-sm text-gray-500">开启后新建日记无需填写标题，自动提取正文前20字</div>
+                    </div>
+                    <button
+                      onClick={() => handlePreferenceChange('quickMode', !preferences.quickMode)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        preferences.quickMode ? 'bg-blue-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          preferences.quickMode ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className="font-medium text-gray-900">自动同步</div>
+                      <div className="text-sm text-gray-500">保存日记后自动推送到云端</div>
+                    </div>
+                    <button
+                      onClick={() => handlePreferenceChange('autoSync', !preferences.autoSync)}
+                      className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+                        preferences.autoSync ? 'bg-blue-600' : 'bg-gray-200'
+                      }`}
+                    >
+                      <span
+                        className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                          preferences.autoSync ? 'translate-x-6' : 'translate-x-1'
+                        }`}
+                      />
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* 编辑器设置 */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">🎨 编辑器设置</h2>
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">字体大小</label>
+                    <div className="flex gap-2">
+                      {[
+                        { key: 'small', label: '小' },
+                        { key: 'medium', label: '中' },
+                        { key: 'large', label: '大' },
+                      ].map((size) => (
+                        <button
+                          key={size.key}
+                          onClick={() => handlePreferenceChange('editorFontSize', size.key)}
+                          className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                            preferences.editorFontSize === size.key
+                              ? 'bg-blue-50 border-blue-500 text-blue-700'
+                              : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                          }`}
+                        >
+                          {size.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">主题色</label>
+                    <div className="flex gap-3">
+                      {[
+                        { key: 'blue', color: 'bg-blue-500' },
+                        { key: 'green', color: 'bg-emerald-500' },
+                        { key: 'purple', color: 'bg-purple-500' },
+                        { key: 'orange', color: 'bg-orange-500' },
+                        { key: 'pink', color: 'bg-pink-500' },
+                      ].map((theme) => (
+                        <button
+                          key={theme.key}
+                          onClick={() => handlePreferenceChange('themeColor', theme.key)}
+                          className={`w-8 h-8 rounded-full ${theme.color} transition-transform ${
+                            preferences.themeColor === theme.key
+                              ? 'ring-2 ring-offset-2 ring-gray-400 scale-110'
+                              : 'hover:scale-105'
+                          }`}
+                          title={theme.key}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* 启动设置 */}
+              <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">🚀 启动设置</h2>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">启动页面</label>
+                  <div className="flex gap-2">
+                    {[
+                      { key: 'home', label: '日记列表' },
+                      { key: 'editor', label: '直接写作' },
+                    ].map((page) => (
+                      <button
+                        key={page.key}
+                        onClick={() => handlePreferenceChange('startupPage', page.key)}
+                        className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                          preferences.startupPage === page.key
+                            ? 'bg-blue-50 border-blue-500 text-blue-700'
+                            : 'border-gray-200 text-gray-600 hover:bg-gray-50'
+                        }`}
+                      >
+                        {page.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {settingsTab === 'export' && (
             <div className="space-y-4 sm:space-y-6">
               <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-4 sm:p-6">

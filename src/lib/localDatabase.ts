@@ -820,6 +820,48 @@ export const localDB = {
       monthlyData.push({ month, count: monthlyCounts[month] || 0 });
     }
 
+    // 星期几分布
+    const weekdayNames = ['周日', '周一', '周二', '周三', '周四', '周五', '周六'];
+    const weekdayCounts = [0, 0, 0, 0, 0, 0, 0];
+    for (const d of diaries) {
+      const day = new Date(d.created_at).getDay();
+      weekdayCounts[day]++;
+    }
+    const weekdayDistribution = weekdayNames.map((day, i) => ({ day, count: weekdayCounts[i] }));
+
+    // 时段分布（6个时段）
+    const hourRanges = [
+      { label: '凌晨', start: 0, end: 6 },
+      { label: '早晨', start: 6, end: 9 },
+      { label: '上午', start: 9, end: 12 },
+      { label: '下午', start: 12, end: 18 },
+      { label: '晚上', start: 18, end: 22 },
+      { label: '深夜', start: 22, end: 24 },
+    ];
+    const hourlyCounts = hourRanges.map(() => 0);
+    for (const d of diaries) {
+      const hour = new Date(d.created_at).getHours();
+      for (let i = 0; i < hourRanges.length; i++) {
+        if (hour >= hourRanges[i].start && hour < hourRanges[i].end) {
+          hourlyCounts[i]++;
+          break;
+        }
+      }
+    }
+    const hourlyDistribution = hourRanges.map((r, i) => ({ hour: r.label, count: hourlyCounts[i] }));
+
+    // 标签统计
+    const tagCounts: Record<string, number> = {};
+    for (const d of diaries) {
+      for (const tag of d.tags || []) {
+        tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+      }
+    }
+    const tagStats = Object.entries(tagCounts)
+      .map(([tag, count]) => ({ tag, count }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10);
+
     return {
       total_count: diaries.length,
       this_month_count: thisMonthCount,
@@ -831,6 +873,9 @@ export const localDB = {
       current_streak: currentStreak,
       top_notebooks: topNotebooks,
       monthly_data: monthlyData,
+      weekday_distribution: weekdayDistribution,
+      hourly_distribution: hourlyDistribution,
+      tag_stats: tagStats,
     };
   },
 

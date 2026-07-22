@@ -4,13 +4,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { Diary, Notebook, DiaryStats, UserProfile as UserProfileType } from '@/types';
 import localDB from '@/lib/localDatabase';
 import { supabase, getCurrentUserId } from '@/lib/supabaseClient';
-import { fullSync, getUserProfile, getSyncStatus } from '@/services/syncService';
+import { fullSync, getUserProfile, getSyncStatus, syncToCloud, pullFromCloud } from '@/services/syncService';
 import DiaryEditor from '@/components/DiaryEditor';
 import VIPModal from '@/components/VIPModal';
 import SyncButton from '@/components/SyncButton';
 import DiaryCard from '@/components/DiaryCard';
 import AuthModal from '@/components/AuthModal';
 import NotebookSidebar from '@/components/NotebookSidebar';
+import MiniHeatmap from '@/components/MiniHeatmap';
+import PWAInstallButton from '@/components/PWAInstallButton';
+import { getPreferences, UserPreferences } from '@/lib/userPreferences';
 
 type FilterType = 'all' | 'favorite' | 'pinned' | 'recent';
 
@@ -41,6 +44,7 @@ export default function HomePage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [preferences, setPreferences] = useState<UserPreferences>(getPreferences());
 
   useEffect(() => {
     loadLocalData();
@@ -169,6 +173,28 @@ export default function HomePage() {
       setPendingCount(count);
       setShowEditor(false);
       setEditingDiary(null);
+
+      // 已登录则自动同步到云端
+      if (isLoggedIn && supabase) {
+        try {
+          const pushResult = await syncToCloud();
+          if (pushResult.success) {
+            console.log(`[自动同步] 已推送 ${pushResult.synced_count} 篇到云端`);
+          }
+          const pullResult = await pullFromCloud();
+          if (pullResult.success && pullResult.server_diaries) {
+            const freshDiaries = await localDB.getAllDiaries();
+            setDiaries(freshDiaries);
+            const freshStats = await localDB.getStats();
+            setStats(freshStats);
+            console.log(`[自动同步] 已从云端拉取 ${pullResult.synced_count} 篇`);
+          }
+          const freshCount = await localDB.countUnsynced();
+          setPendingCount(freshCount);
+        } catch (syncErr) {
+          console.error('[自动同步] 失败:', syncErr);
+        }
+      }
     } catch (error) {
       console.error('保存失败:', error);
       alert(`保存失败: ${error instanceof Error ? error.message : '未知错误'}`);
@@ -264,7 +290,7 @@ export default function HomePage() {
     setNotebooks(updated);
   };
 
-  const handleSelectDate = (date: string) => {
+  const handleSelectDate = (date: string | null) => {
     setSelectedDate(date === selectedDate ? null : date);
     setSelectedNotebookId(null);
     setSelectedTag(null);
@@ -364,7 +390,7 @@ export default function HomePage() {
       <div className="flex-1 md:ml-60">
         <header className="bg-white border-b border-gray-200 sticky top-0 z-30">
           <div className="px-3 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-4">
+            <div className="flex items-center gap-2 sm:gap-4 shrink-0">
               {/* 移动端菜单按钮 */}
               <button
                 onClick={() => setMobileSidebarOpen(true)}
@@ -386,7 +412,20 @@ export default function HomePage() {
               </button>
             </div>
 
-            <div className="flex items-center gap-2 sm:gap-3">
+            {/* 紧凑热力图 - 只在电脑端显示 */}
+            <div className="hidden md:flex flex-1 justify-center px-4">
+              {diaries.length > 0 && (
+                <MiniHeatmap
+                  diaries={diaries}
+                  onSelectDate={handleSelectDate}
+                  selectedDate={selectedDate}
+                />
+              )}
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+              {/* PWA安装按钮 */}
+              <PWAInstallButton />
               {/* 移动端搜索按钮 */}
               <button
                 onClick={() => setShowSearch(true)}
@@ -565,8 +604,20 @@ export default function HomePage() {
           onCancel={() => { setShowEditor(false); setEditingDiary(null); }}
           isSaving={isSaving}
           availableTags={tags}
+          quickMode={preferences.quickMode && !editingDiary}
         />
       )}
+
+      {/* 移动端浮动加号按钮 */}
+      <button
+        onClick={handleCreateDiary}
+        className="md:hidden fixed bottom-6 right-6 w-14 h-14 bg-blue-600 text-white rounded-full shadow-lg shadow-blue-600/30 flex items-center justify-center hover:bg-blue-700 active:bg-blue-800 active:scale-95 transition-all z-40"
+        aria-label="写日记"
+      >
+        <svg className="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+        </svg>
+      </button>
 
       <VIPModal isOpen={showVipModal} onClose={() => setShowVipModal(false)} userId={userId} onSuccess={() => { setShowVipModal(false); loadLocalData(); loadCloudData(); }} />
       <AuthModal isOpen={showAuthModal} onClose={() => setShowAuthModal(false)} onSuccess={handleAuthSuccess} />

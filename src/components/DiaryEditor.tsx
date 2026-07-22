@@ -11,6 +11,7 @@ interface DiaryEditorProps {
   onCancel: () => void;
   isSaving?: boolean;
   availableTags?: string[];
+  quickMode?: boolean;
 }
 
 export default function DiaryEditor({
@@ -20,6 +21,7 @@ export default function DiaryEditor({
   onCancel,
   isSaving = false,
   availableTags = [],
+  quickMode = false,
 }: DiaryEditorProps) {
   const [title, setTitle] = useState(diary?.title || '');
   const [content, setContent] = useState(diary?.content || '');
@@ -34,8 +36,17 @@ export default function DiaryEditor({
     setCharCount(content.length);
   }, [content]);
 
-  // 验证标题
+  // 验证标题（随手记模式下标题可选）
   const validateTitle = (value: string): boolean => {
+    if (quickMode) {
+      // 随手记模式：标题可选，但如果有内容不能超过限制
+      if (value.length > DATA_CONSTRAINTS.MAX_TITLE_LENGTH) {
+        setTitleError(`标题长度不能超过${DATA_CONSTRAINTS.MAX_TITLE_LENGTH}字符`);
+        return false;
+      }
+      setTitleError('');
+      return true;
+    }
     if (!value || value.trim().length === 0) {
       setTitleError('标题不能为空');
       return false;
@@ -83,7 +94,14 @@ export default function DiaryEditor({
       return;
     }
 
-    await onSave({ title: title.trim(), content, tags });
+    // 随手记模式：如果没填标题，用内容前20字作为标题
+    let finalTitle = title.trim();
+    if (quickMode && !finalTitle) {
+      finalTitle = content.trim().substring(0, 20) || '随手记';
+      if (content.trim().length > 20) finalTitle += '...';
+    }
+
+    await onSave({ title: finalTitle, content, tags });
   };
 
   // 快捷键支持
@@ -124,10 +142,16 @@ export default function DiaryEditor({
         {/* 表单 */}
         <form onSubmit={handleSubmit} className="flex-1 flex flex-col overflow-hidden">
           <div className="flex-1 p-6 space-y-4 overflow-y-auto">
-            {/* 标题输入 */}
+            {/* 标题输入（随手记模式下可选） */}
             <div>
               <label htmlFor="title" className="block text-sm font-medium text-gray-700 mb-2">
-                标题
+                {quickMode ? (
+                  <span className="flex items-center gap-1">
+                    标题 <span className="text-gray-400 font-normal text-xs">（可选，不填将自动提取）</span>
+                  </span>
+                ) : (
+                  '标题'
+                )}
               </label>
               <input
                 type="text"
@@ -135,11 +159,11 @@ export default function DiaryEditor({
                 value={title}
                 onChange={handleTitleChange}
                 onKeyDown={handleKeyDown}
-                placeholder="给这篇日记起个名字..."
+                placeholder={quickMode ? "想加标题就写，不想加直接写正文..." : "给这篇日记起个名字..."}
                 className={`w-full px-4 py-3 rounded-lg border transition-all focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
                   titleError ? 'border-red-300 bg-red-50' : 'border-gray-200 hover:border-gray-300'
                 }`}
-                autoFocus
+                autoFocus={!quickMode}
                 maxLength={DATA_CONSTRAINTS.MAX_TITLE_LENGTH}
                 disabled={isSaving}
               />
